@@ -160,9 +160,16 @@ export async function getPublicGift(slug: string): Promise<{
   data?: PublicGiftData
   error?: string
 }> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+
+  // 1. Try Supabase Functions SDK invocation
   try {
     const { data, error } = await supabase.functions.invoke('get-public-gift', {
       body: { slug },
+      headers: {
+        'Content-Type': 'application/json',
+      },
     })
 
     if (!error && data?.data) {
@@ -170,10 +177,40 @@ export async function getPublicGift(slug: string): Promise<{
     }
 
     if (error) {
-      console.warn('[publishService] get-public-gift Edge Function error, trying client query:', error.message)
+      console.warn('[publishService] supabase.functions.invoke error:', error.message)
     }
+  } catch (sdkErr) {
+    console.warn('[publishService] SDK invoke exception:', sdkErr)
+  }
 
-    // Direct client query fallback
+  // 2. Try Direct HTTP GET to Edge Function endpoint with public anon key
+  if (supabaseUrl && supabaseAnonKey) {
+    try {
+      const edgeUrl = `${supabaseUrl}/functions/v1/get-public-gift?slug=${encodeURIComponent(slug)}`
+      const res = await fetch(edgeUrl, {
+        method: 'GET',
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+      })
+
+      if (res.ok) {
+        const json = await res.json()
+        if (json?.data) {
+          return { data: json.data }
+        }
+      } else {
+        const errorJson = await res.json().catch(() => null)
+        console.warn('[publishService] Direct HTTP Edge Function response not ok:', res.status, errorJson)
+      }
+    } catch (fetchErr) {
+      console.warn('[publishService] Direct HTTP fetch error:', fetchErr)
+    }
+  }
+
+  // 3. Direct client query fallback (works when creator is logged in or public read policy active)
+  try {
     const { data: giftData, error: giftErr } = await supabase
       .from('gifts')
       .select(`

@@ -16,6 +16,7 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [accountExists, setAccountExists] = useState(false)
   const [success, setSuccess] = useState(false)
 
   // ── Validation ──────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ export default function SignupPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    setAccountExists(false)
     setSuccess(false)
 
     const validationError = validate()
@@ -54,13 +56,28 @@ export default function SignupPage() {
       })
 
       if (authError) {
+        const errorMsg = authError.message.toLowerCase()
+        if (
+          errorMsg.includes('already registered') ||
+          errorMsg.includes('already been registered') ||
+          errorMsg.includes('already exists')
+        ) {
+          setAccountExists(true)
+          return
+        }
         setError(getAuthErrorMessage(authError))
+        return
+      }
+
+      // Supabase anti-enumeration: existing user returns user object with empty identities array
+      if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        setAccountExists(true)
         return
       }
 
       // If email confirmation is enabled in Supabase, the session will be null
       // and the user needs to verify their email first.
-      if (!data.session) {
+      if (!data?.session) {
         setSuccess(true)
         return
       }
@@ -134,8 +151,40 @@ export default function SignupPage() {
         {/* Card */}
         <div className="bg-white rounded-3xl p-8 border border-warm-200 shadow-card">
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {/* Account already exists banner */}
+            {accountExists && (
+              <div
+                role="alert"
+                className="bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-4 text-xs space-y-3 animate-fade-in"
+              >
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-amber-900">This email may already have an account.</p>
+                    <p className="text-amber-700 mt-0.5 leading-relaxed">
+                      Try signing in with your existing password, or reset your password if you forgot it.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-semibold text-xs shadow-xs transition-all"
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    to="/forgot-password"
+                    className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-xl bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-semibold text-xs transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* Error banner */}
-            {error && (
+            {error && !accountExists && (
               <div
                 role="alert"
                 className="flex items-start gap-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm"

@@ -1,0 +1,10 @@
+# Supabase Edge Functions Configuration
+
+[functions.get-public-gift]
+verify_jwt = false
+
+[functions.publish-gift]
+verify_jwt = true
+
+[functions.generate-gift-content]
+verify_jwt = true

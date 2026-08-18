@@ -16,6 +16,8 @@ const WeddingPage     = lazy(() => import('@/pages/WeddingPage'))
 const HowItWorksPage  = lazy(() => import('@/pages/HowItWorksPage'))
 const LoginPage       = lazy(() => import('@/pages/LoginPage'))
 const SignupPage      = lazy(() => import('@/pages/SignupPage'))
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'))
+const ResetPasswordPage  = lazy(() => import('@/pages/ResetPasswordPage'))
 const DashboardPage   = lazy(() => import('@/pages/DashboardPage'))
 const RecipientGiftPage = lazy(() => import('@/pages/RecipientGiftPage'))
 
@@ -97,6 +99,18 @@ export default function App() {
                               <SignupPage />
                             </RequireGuest>
                           }
+                        />
+                        <Route
+                          path="/forgot-password"
+                          element={
+                            <RequireGuest>
+                              <ForgotPasswordPage />
+                            </RequireGuest>
+                          }
+                        />
+                        <Route
+                          path="/reset-password"
+                          element={<ResetPasswordPage />}
                         />
                       </Routes>
                     </Suspense>
