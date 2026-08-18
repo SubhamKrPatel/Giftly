@@ -12,6 +12,21 @@ export const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm']
 export const MAX_VIDEO_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 export const MAX_VIDEOS_PER_GIFT = 5
 
+// Audio / Voice / Music specifications (Part 4D)
+export const ALLOWED_MUSIC_TYPES = [
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/m4a',
+  'audio/aac',
+  'audio/wav',
+  'audio/webm',
+  'audio/ogg',
+]
+export const MAX_MUSIC_FILE_SIZE = 15 * 1024 * 1024 // 15MB
+export const MAX_VOICE_DURATION_SECONDS = 180 // 3 minutes
+
 export interface FileValidationResult {
   valid: boolean
   error?: string
@@ -70,6 +85,40 @@ export function validateVideoFile(file: File): FileValidationResult {
 }
 
 /**
+ * Validate background music file format and size (Part 4D)
+ */
+export function validateMusicFile(file: File): FileValidationResult {
+  if (!file) {
+    return { valid: false, error: 'No file provided.' }
+  }
+
+  // Also check extension if MIME type is generic
+  const parts = file.name.split('.')
+  const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : ''
+  const validExtensions = ['mp3', 'm4a', 'aac', 'wav', 'webm', 'ogg']
+
+  const isValidMime = ALLOWED_MUSIC_TYPES.includes(file.type)
+  const isValidExt = validExtensions.includes(ext)
+
+  if (!isValidMime && !isValidExt) {
+    return {
+      valid: false,
+      error: `Invalid audio format (${file.type || ext || 'unknown'}). Please upload MP3, M4A, AAC, WAV, or WebM audio files.`,
+    }
+  }
+
+  if (file.size > MAX_MUSIC_FILE_SIZE) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+    return {
+      valid: false,
+      error: `Audio file is too large (${sizeMB} MB). Maximum allowed size is 15 MB.`,
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
  * Generate standard storage path for gift photos:
  * gifts/{userId}/{giftId}/images/{mediaId}.{ext}
  */
@@ -100,19 +149,49 @@ export function generateVideoStoragePath(
 }
 
 /**
- * Upload binary file to Supabase Storage gift-media bucket
+ * Generate standard storage path for voice recordings (Part 4D):
+ * gifts/{userId}/{giftId}/voice/{mediaId}.{ext}
+ */
+export function generateVoiceStoragePath(
+  userId: string,
+  giftId: string,
+  mediaId: string,
+  ext = 'webm'
+): string {
+  return `gifts/${userId}/${giftId}/voice/${mediaId}.${ext}`
+}
+
+/**
+ * Generate standard storage path for background music (Part 4D):
+ * gifts/{userId}/{giftId}/music/{mediaId}.{ext}
+ */
+export function generateMusicStoragePath(
+  userId: string,
+  giftId: string,
+  mediaId: string,
+  fileName: string
+): string {
+  const parts = fileName.split('.')
+  const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : 'mp3'
+  return `gifts/${userId}/${giftId}/music/${mediaId}.${ext}`
+}
+
+/**
+ * Upload binary file/blob to Supabase Storage gift-media bucket
  */
 export async function uploadMediaToStorage(
   storagePath: string,
-  file: File
+  file: File | Blob,
+  contentType?: string
 ): Promise<{ error: Error | null }> {
   try {
+    const mime = contentType || (file instanceof File ? file.type : 'application/octet-stream')
     const { error } = await supabase.storage
       .from(MEDIA_BUCKET)
       .upload(storagePath, file, {
         cacheControl: '3600',
         upsert: true,
-        contentType: file.type,
+        contentType: mime,
       })
 
     if (error) throw error

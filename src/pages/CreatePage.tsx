@@ -145,8 +145,22 @@ export default function CreatePage() {
           },
           {
             gift_id: newGift.id,
-            section_type: 'final_message',
+            section_type: 'voice',
             position: 4,
+            content: {},
+            is_visible: true,
+          },
+          {
+            gift_id: newGift.id,
+            section_type: 'music',
+            position: 5,
+            content: {},
+            is_visible: true,
+          },
+          {
+            gift_id: newGift.id,
+            section_type: 'final_message',
+            position: 6,
             content: {
               heading: 'With Love',
               body: 'I hope this little surprise made you smile!',

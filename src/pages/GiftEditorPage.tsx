@@ -12,6 +12,7 @@ import {
 import { useGiftEditor } from '@/lib/hooks/useGiftEditor'
 import { useGiftMedia } from '@/lib/hooks/useGiftMedia'
 import { useGiftVideos } from '@/lib/hooks/useGiftVideos'
+import { useGiftAudio } from '@/lib/hooks/useGiftAudio'
 import type {
   CoverSectionContent,
   MessageSectionContent,
@@ -24,6 +25,8 @@ import CoverEditor from '@/components/editor/CoverEditor'
 import MessageEditor from '@/components/editor/MessageEditor'
 import GalleryEditor from '@/components/editor/GalleryEditor'
 import VideoEditor from '@/components/editor/VideoEditor'
+import VoiceEditor from '@/components/editor/VoiceEditor'
+import MusicEditor from '@/components/editor/MusicEditor'
 import FinalMessageEditor from '@/components/editor/FinalMessageEditor'
 import ThemePicker from '@/components/editor/ThemePicker'
 import GiftPreview from '@/components/editor/GiftPreview'
@@ -53,9 +56,11 @@ export default function GiftEditorPage() {
   const messageSection = sections.find((s) => s.section_type === 'message')
   const gallerySection = sections.find((s) => s.section_type === 'gallery')
   const videoSection = sections.find((s) => s.section_type === 'video')
+  const voiceSection = sections.find((s) => s.section_type === 'voice')
+  const musicSection = sections.find((s) => s.section_type === 'music')
   const finalMessageSection = sections.find((s) => s.section_type === 'final_message')
 
-  // Media hook for gallery photos
+  // Media hook for gallery photos (Part 4B)
   const {
     mediaItems,
     loading: loadingMedia,
@@ -78,6 +83,25 @@ export default function GiftEditorPage() {
     reorderVideos,
     deleteVideo,
   } = useGiftVideos(giftId, videoSection?.id)
+
+  // Audio hooks for Voice Note & Background Music (Part 4D)
+  const {
+    audioItem: voiceItem,
+    loading: loadingVoice,
+    uploading: uploadingVoice,
+    error: voiceError,
+    saveVoiceRecording,
+    deleteAudio: deleteVoiceRecording,
+  } = useGiftAudio(giftId, voiceSection?.id, 'voice')
+
+  const {
+    audioItem: musicItem,
+    loading: loadingMusic,
+    uploading: uploadingMusic,
+    error: musicError,
+    uploadMusic,
+    deleteAudio: deleteMusicTrack,
+  } = useGiftAudio(giftId, musicSection?.id, 'music')
 
   if (loadingGift) {
     return (
@@ -290,7 +314,31 @@ export default function GiftEditorPage() {
                 />
               )}
 
-              {/* 7. Final Message Section Editor */}
+              {/* 7. Voice Message Editor (Part 4D) */}
+              {selectedSectionType === 'voice' && (
+                <VoiceEditor
+                  audioItem={voiceItem}
+                  loading={loadingVoice}
+                  uploading={uploadingVoice}
+                  error={voiceError}
+                  onSaveRecording={saveVoiceRecording}
+                  onDeleteRecording={deleteVoiceRecording}
+                />
+              )}
+
+              {/* 8. Background Music Editor (Part 4D) */}
+              {selectedSectionType === 'music' && (
+                <MusicEditor
+                  audioItem={musicItem}
+                  loading={loadingMusic}
+                  uploading={uploadingMusic}
+                  error={musicError}
+                  onUploadMusic={uploadMusic}
+                  onDeleteMusic={deleteMusicTrack}
+                />
+              )}
+
+              {/* 9. Final Message Section Editor */}
               {selectedSectionType === 'final_message' && finalMessageSection && (
                 <FinalMessageEditor
                   content={finalMessageSection.content as FinalMessageSectionContent}
@@ -309,6 +357,8 @@ export default function GiftEditorPage() {
               activeSectionType={selectedSectionType}
               mediaItems={mediaItems}
               videoItems={videoItems}
+              voiceItem={voiceItem}
+              musicItem={musicItem}
             />
           </aside>
         </div>
@@ -323,6 +373,8 @@ export default function GiftEditorPage() {
                 activeSectionType={selectedSectionType}
                 mediaItems={mediaItems}
                 videoItems={videoItems}
+                voiceItem={voiceItem}
+                musicItem={musicItem}
               />
             </div>
           ) : (
@@ -438,6 +490,28 @@ export default function GiftEditorPage() {
                     onUpload={uploadVideoFiles}
                     onReorder={reorderVideos}
                     onDelete={deleteVideo}
+                  />
+                )}
+
+                {selectedSectionType === 'voice' && (
+                  <VoiceEditor
+                    audioItem={voiceItem}
+                    loading={loadingVoice}
+                    uploading={uploadingVoice}
+                    error={voiceError}
+                    onSaveRecording={saveVoiceRecording}
+                    onDeleteRecording={deleteVoiceRecording}
+                  />
+                )}
+
+                {selectedSectionType === 'music' && (
+                  <MusicEditor
+                    audioItem={musicItem}
+                    loading={loadingMusic}
+                    uploading={uploadingMusic}
+                    error={musicError}
+                    onUploadMusic={uploadMusic}
+                    onDeleteMusic={deleteMusicTrack}
                   />
                 )}
 

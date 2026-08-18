@@ -63,8 +63,7 @@ const SECTION_METADATA: Record<
     title: 'Background Music',
     subtitle: 'Atmospheric audio tracks',
     icon: Music,
-    available: false,
-    badge: 'Coming soon',
+    available: true,
   },
   video: {
     title: 'Video Message',
@@ -73,11 +72,10 @@ const SECTION_METADATA: Record<
     available: true,
   },
   voice: {
-    title: 'Voice Note',
-    subtitle: 'Recorded audio note',
+    title: 'Voice Message',
+    subtitle: 'Recorded audio message',
     icon: Mic,
-    available: false,
-    badge: 'Coming soon',
+    available: true,
   },
 }
 

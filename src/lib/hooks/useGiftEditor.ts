@@ -48,8 +48,20 @@ export const DEFAULT_INITIAL_SECTIONS = [
     is_visible: true,
   },
   {
-    section_type: 'final_message',
+    section_type: 'voice',
     position: 4,
+    content: {},
+    is_visible: true,
+  },
+  {
+    section_type: 'music',
+    position: 5,
+    content: {},
+    is_visible: true,
+  },
+  {
+    section_type: 'final_message',
+    position: 6,
     content: {
       heading: 'With Love',
       body: '',
@@ -140,23 +152,32 @@ export function useGiftEditor(giftId?: string | null) {
         if (!initError && newSections) {
           loadedSections = newSections as GiftSection[]
         }
-      } else if (!loadedSections.some((s) => s.section_type === 'video')) {
-        // If existing gift lacks video section, insert video section seamlessly
-        const maxPos = loadedSections.reduce((max, s) => Math.max(max, s.position), 0)
-        const { data: newVideoSec } = await supabase
-          .from('gift_sections')
-          .insert({
-            gift_id: giftId,
-            section_type: 'video',
-            position: maxPos + 1,
-            content: {},
-            is_visible: true,
-          })
-          .select()
-          .single()
+      } else {
+        // If existing gift lacks video, voice, or music sections, insert them smoothly
+        const missingTypes = ['video', 'voice', 'music'].filter(
+          (t) => !loadedSections.some((s) => s.section_type === t)
+        )
 
-        if (newVideoSec) {
-          loadedSections.push(newVideoSec as GiftSection)
+        if (missingTypes.length > 0) {
+          let maxPos = loadedSections.reduce((max, s) => Math.max(max, s.position), 0)
+          for (const mType of missingTypes) {
+            maxPos++
+            const { data: newSec } = await supabase
+              .from('gift_sections')
+              .insert({
+                gift_id: giftId,
+                section_type: mType,
+                position: maxPos,
+                content: {},
+                is_visible: true,
+              })
+              .select()
+              .single()
+
+            if (newSec) {
+              loadedSections.push(newSec as GiftSection)
+            }
+          }
         }
       }
 

@@ -1,4 +1,4 @@
-import { Heart, MessageSquareHeart, Image as ImageIcon, Video as VideoIcon } from 'lucide-react'
+import { Heart, MessageSquareHeart, Image as ImageIcon, Video as VideoIcon, Mic, Music } from 'lucide-react'
 import type {
   GiftWithDetails,
   GiftSection,
@@ -14,6 +14,8 @@ interface GiftPreviewProps {
   activeSectionType?: string
   mediaItems?: GiftMediaItem[]
   videoItems?: GiftMediaItem[]
+  voiceItem?: GiftMediaItem | null
+  musicItem?: GiftMediaItem | null
 }
 
 export default function GiftPreview({
@@ -21,6 +23,8 @@ export default function GiftPreview({
   sections,
   mediaItems = [],
   videoItems = [],
+  voiceItem = null,
+  musicItem = null,
 }: GiftPreviewProps) {
   const theme = gift.theme_config || {
     primaryColor: '#f43f5e',
@@ -311,6 +315,83 @@ export default function GiftPreview({
                       <div className="py-6 text-center border border-dashed border-warm-200 rounded-2xl p-4 text-neutral-400 text-xs">
                         <VideoIcon className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
                         <span>Videos added in the editor will appear here</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+
+              if (section.section_type === 'voice') {
+                return (
+                  <div
+                    key={section.id}
+                    className="p-5 rounded-3xl bg-white shadow-xs border border-warm-200/80 transition-all duration-300 animate-fade-in space-y-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        <Mic className="w-3.5 h-3.5" />
+                      </div>
+                      <h3 className="font-serif text-base font-semibold text-neutral-800">
+                        Voice Message
+                      </h3>
+                    </div>
+
+                    {voiceItem && voiceItem.signedUrl ? (
+                      <div className="bg-warm-50 p-3 rounded-2xl border border-warm-200">
+                        <audio
+                          src={voiceItem.signedUrl}
+                          controls
+                          preload="metadata"
+                          className="w-full"
+                        />
+                      </div>
+                    ) : (
+                      <div className="py-6 text-center border border-dashed border-warm-200 rounded-2xl p-4 text-neutral-400 text-xs">
+                        <Mic className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
+                        <span>Voice message recorded in the editor will appear here</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+
+              if (section.section_type === 'music') {
+                return (
+                  <div
+                    key={section.id}
+                    className="p-5 rounded-3xl bg-white shadow-xs border border-warm-200/80 transition-all duration-300 animate-fade-in space-y-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        <Music className="w-3.5 h-3.5" />
+                      </div>
+                      <h3 className="font-serif text-base font-semibold text-neutral-800">
+                        Background Music
+                      </h3>
+                    </div>
+
+                    {musicItem && musicItem.signedUrl ? (
+                      <div className="bg-warm-50 p-3 rounded-2xl border border-warm-200 space-y-2">
+                        <p className="text-xs font-semibold text-neutral-700 truncate" title={musicItem.file_name}>
+                          🎵 {musicItem.file_name}
+                        </p>
+                        <audio
+                          src={musicItem.signedUrl}
+                          controls
+                          preload="metadata"
+                          className="w-full"
+                        />
+                      </div>
+                    ) : (
+                      <div className="py-6 text-center border border-dashed border-warm-200 rounded-2xl p-4 text-neutral-400 text-xs">
+                        <Music className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
+                        <span>Background soundtrack will appear here</span>
                       </div>
                     )}
                   </div>
