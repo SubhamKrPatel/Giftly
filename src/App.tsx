@@ -10,6 +10,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import HomePage from '@/pages/HomePage'
 
 const CreatePage      = lazy(() => import('@/pages/CreatePage'))
+const GiftEditorPage  = lazy(() => import('@/pages/GiftEditorPage'))
 const OccasionsPage   = lazy(() => import('@/pages/OccasionsPage'))
 const WeddingPage     = lazy(() => import('@/pages/WeddingPage'))
 const HowItWorksPage  = lazy(() => import('@/pages/HowItWorksPage'))
@@ -24,6 +25,34 @@ export default function App() {
       <AuthProvider>
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
+            {/* ── Protected create wizard & gift editor — standalone full-page flows ── */}
+            <Route
+              path="/create"
+              element={
+                <RequireAuth>
+                  <CreatePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/create/:giftId"
+              element={
+                <RequireAuth>
+                  <GiftEditorPage />
+                </RequireAuth>
+              }
+            />
+
+            {/* ── Protected dashboard — no public Navbar/Footer ── */}
+            <Route
+              path="/dashboard"
+              element={
+                <RequireAuth>
+                  <DashboardPage />
+                </RequireAuth>
+              }
+            />
+
             {/* ── Public routes (with shared Navbar + Footer) ── */}
             <Route
               element={
@@ -36,9 +65,6 @@ export default function App() {
                         <Route path="/occasions" element={<OccasionsPage />} />
                         <Route path="/wedding" element={<WeddingPage />} />
                         <Route path="/how-it-works" element={<HowItWorksPage />} />
-
-                        {/* Create — accessible publicly but prompts login if not authed */}
-                        <Route path="/create" element={<CreatePage />} />
 
                         {/* Guest-only routes — redirect to /dashboard if already logged in */}
                         <Route
@@ -64,16 +90,6 @@ export default function App() {
                 </div>
               }
               path="/*"
-            />
-
-            {/* ── Protected dashboard — no public Navbar/Footer ── */}
-            <Route
-              path="/dashboard"
-              element={
-                <RequireAuth>
-                  <DashboardPage />
-                </RequireAuth>
-              }
             />
           </Routes>
         </Suspense>
