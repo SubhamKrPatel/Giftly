@@ -1,5 +1,5 @@
-// Database types for Giftly Part 4A.
-// Extended with gift_sections table and gifts.theme_config.
+// Database types for Giftly Part 4B.
+// Extended with gift_media table and media relationship definitions.
 // Structure follows the @supabase/supabase-js Database generic contract.
 
 export interface TemplateThemeConfig {
@@ -42,7 +42,9 @@ export interface FinalMessageSectionContent {
 }
 
 export interface GallerySectionContent {
-  items: Array<{ id: string; url?: string; caption?: string }>
+  layout?: 'grid' | 'masonry'
+  caption?: string
+  items?: Array<{ id: string; url?: string; caption?: string }>
 }
 
 export type SectionType =
@@ -60,6 +62,8 @@ export type SectionContent =
   | FinalMessageSectionContent
   | GallerySectionContent
   | Record<string, unknown>
+
+export type MediaType = 'image' | 'video' | 'audio' | 'voice' | string
 
 export interface Database {
   public: {
@@ -268,6 +272,62 @@ export interface Database {
           },
         ]
       }
+      gift_media: {
+        Row: {
+          id: string
+          gift_id: string
+          section_id: string | null
+          media_type: MediaType
+          storage_path: string
+          file_name: string
+          mime_type: string
+          file_size: number
+          position: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          gift_id: string
+          section_id?: string | null
+          media_type?: MediaType
+          storage_path: string
+          file_name: string
+          mime_type: string
+          file_size: number
+          position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          gift_id?: string
+          section_id?: string | null
+          media_type?: MediaType
+          storage_path?: string
+          file_name?: string
+          mime_type?: string
+          file_size?: number
+          position?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gift_media_gift_id_fkey'
+            columns: ['gift_id']
+            isOneToOne: false
+            referencedRelation: 'gifts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'gift_media_section_id_fkey'
+            columns: ['section_id']
+            isOneToOne: false
+            referencedRelation: 'gift_sections'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -304,6 +364,15 @@ export type GiftUpdate = Database['public']['Tables']['gifts']['Update']
 export type GiftSection = Database['public']['Tables']['gift_sections']['Row']
 export type GiftSectionInsert = Database['public']['Tables']['gift_sections']['Insert']
 export type GiftSectionUpdate = Database['public']['Tables']['gift_sections']['Update']
+
+export type GiftMedia = Database['public']['Tables']['gift_media']['Row']
+export type GiftMediaInsert = Database['public']['Tables']['gift_media']['Insert']
+export type GiftMediaUpdate = Database['public']['Tables']['gift_media']['Update']
+
+// Client-augmented type with resolved signed URL
+export type GiftMediaItem = GiftMedia & {
+  signedUrl?: string
+}
 
 // Convenience joined type
 export type GiftWithDetails = Gift & {

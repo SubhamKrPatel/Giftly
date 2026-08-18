@@ -10,6 +10,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { useGiftEditor } from '@/lib/hooks/useGiftEditor'
+import { useGiftMedia } from '@/lib/hooks/useGiftMedia'
 import type {
   CoverSectionContent,
   MessageSectionContent,
@@ -20,6 +21,7 @@ import EditorHeader from '@/components/editor/EditorHeader'
 import EditorSectionList from '@/components/editor/EditorSectionList'
 import CoverEditor from '@/components/editor/CoverEditor'
 import MessageEditor from '@/components/editor/MessageEditor'
+import GalleryEditor from '@/components/editor/GalleryEditor'
 import FinalMessageEditor from '@/components/editor/FinalMessageEditor'
 import ThemePicker from '@/components/editor/ThemePicker'
 import GiftPreview from '@/components/editor/GiftPreview'
@@ -33,7 +35,7 @@ export default function GiftEditorPage() {
     sections,
     selectedSectionType,
     setSelectedSectionType,
-    loading,
+    loading: loadingGift,
     notFound,
     saveStatus,
     updateGiftDetails,
@@ -44,7 +46,25 @@ export default function GiftEditorPage() {
     saveAll,
   } = useGiftEditor(giftId)
 
-  if (loading) {
+  // Find active section content
+  const coverSection = sections.find((s) => s.section_type === 'cover')
+  const messageSection = sections.find((s) => s.section_type === 'message')
+  const gallerySection = sections.find((s) => s.section_type === 'gallery')
+  const finalMessageSection = sections.find((s) => s.section_type === 'final_message')
+
+  // Media hook for gallery photos
+  const {
+    mediaItems,
+    loading: loadingMedia,
+    uploading,
+    uploadProgress,
+    error: mediaError,
+    uploadFiles,
+    reorderMedia,
+    deleteMedia,
+  } = useGiftMedia(giftId, gallerySection?.id)
+
+  if (loadingGift) {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center p-4"
@@ -84,11 +104,6 @@ export default function GiftEditorPage() {
       </div>
     )
   }
-
-  // Find active section content
-  const coverSection = sections.find((s) => s.section_type === 'cover')
-  const messageSection = sections.find((s) => s.section_type === 'message')
-  const finalMessageSection = sections.find((s) => s.section_type === 'final_message')
 
   return (
     <div
@@ -232,7 +247,21 @@ export default function GiftEditorPage() {
                 />
               )}
 
-              {/* 5. Final Message Section Editor */}
+              {/* 5. Gallery / Photo Memories Editor (Part 4B) */}
+              {selectedSectionType === 'gallery' && (
+                <GalleryEditor
+                  mediaItems={mediaItems}
+                  loading={loadingMedia}
+                  uploading={uploading}
+                  uploadProgress={uploadProgress}
+                  error={mediaError}
+                  onUpload={uploadFiles}
+                  onReorder={reorderMedia}
+                  onDelete={deleteMedia}
+                />
+              )}
+
+              {/* 6. Final Message Section Editor */}
               {selectedSectionType === 'final_message' && finalMessageSection && (
                 <FinalMessageEditor
                   content={finalMessageSection.content as FinalMessageSectionContent}
@@ -245,7 +274,12 @@ export default function GiftEditorPage() {
 
           {/* Right Column: Live Mobile Preview (4 cols) */}
           <aside className="col-span-4 sticky top-24">
-            <GiftPreview gift={gift} sections={sections} activeSectionType={selectedSectionType} />
+            <GiftPreview
+              gift={gift}
+              sections={sections}
+              activeSectionType={selectedSectionType}
+              mediaItems={mediaItems}
+            />
           </aside>
         </div>
 
@@ -253,7 +287,12 @@ export default function GiftEditorPage() {
         <div className="block lg:hidden space-y-6">
           {mobileTab === 'preview' ? (
             <div className="py-4">
-              <GiftPreview gift={gift} sections={sections} activeSectionType={selectedSectionType} />
+              <GiftPreview
+                gift={gift}
+                sections={sections}
+                activeSectionType={selectedSectionType}
+                mediaItems={mediaItems}
+              />
             </div>
           ) : (
             <div className="space-y-6">
@@ -342,6 +381,19 @@ export default function GiftEditorPage() {
                     content={messageSection.content as MessageSectionContent}
                     onChange={(updates) => updateSectionContent('message', updates)}
                     recipientName={gift.recipient_name}
+                  />
+                )}
+
+                {selectedSectionType === 'gallery' && (
+                  <GalleryEditor
+                    mediaItems={mediaItems}
+                    loading={loadingMedia}
+                    uploading={uploading}
+                    uploadProgress={uploadProgress}
+                    error={mediaError}
+                    onUpload={uploadFiles}
+                    onReorder={reorderMedia}
+                    onDelete={deleteMedia}
                   />
                 )}
 

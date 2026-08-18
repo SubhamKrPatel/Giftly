@@ -51,8 +51,7 @@ const SECTION_METADATA: Record<
     title: 'Photo Memories',
     subtitle: 'Moments, captions & gallery',
     icon: ImageIcon,
-    available: false,
-    badge: 'Part 4B',
+    available: true,
   },
   final_message: {
     title: 'Final Message',
