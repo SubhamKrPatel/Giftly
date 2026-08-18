@@ -8,6 +8,7 @@ import {
   PenTool,
   Type,
   FileText,
+  Sparkles,
 } from 'lucide-react'
 import { useGiftEditor } from '@/lib/hooks/useGiftEditor'
 import { useGiftMedia } from '@/lib/hooks/useGiftMedia'
@@ -18,6 +19,7 @@ import type {
   MessageSectionContent,
   FinalMessageSectionContent,
 } from '@/lib/database.types'
+import type { GeneratedFullGiftResult } from '@/lib/services/aiService'
 import Button from '@/components/ui/Button'
 import EditorHeader from '@/components/editor/EditorHeader'
 import EditorSectionList from '@/components/editor/EditorSectionList'
@@ -30,10 +32,15 @@ import MusicEditor from '@/components/editor/MusicEditor'
 import FinalMessageEditor from '@/components/editor/FinalMessageEditor'
 import ThemePicker from '@/components/editor/ThemePicker'
 import GiftPreview from '@/components/editor/GiftPreview'
+import AIAssistantModal from '@/components/ai/AIAssistantModal'
 
 export default function GiftEditorPage() {
   const { giftId } = useParams<{ giftId: string }>()
   const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('editor')
+
+  // AI Assistant Modal State (Part 5)
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false)
+  const [aiModalMode, setAiModalMode] = useState<'generate' | 'improve' | 'full_gift'>('generate')
 
   const {
     gift,
@@ -103,6 +110,22 @@ export default function GiftEditorPage() {
     deleteAudio: deleteMusicTrack,
   } = useGiftAudio(giftId, musicSection?.id, 'music')
 
+  // AI Modal openers & appliers
+  const handleOpenAI = (mode: 'generate' | 'improve' | 'full_gift' = 'generate') => {
+    setAiModalMode(mode)
+    setIsAIModalOpen(true)
+  }
+
+  const handleApplyAIMessage = (heading: string, body: string) => {
+    updateSectionContent('message', { heading, body })
+  }
+
+  const handleApplyAIFullGift = (content: GeneratedFullGiftResult) => {
+    updateSectionContent('cover', content.cover)
+    updateSectionContent('message', content.message)
+    updateSectionContent('final_message', content.final_message)
+  }
+
   if (loadingGift) {
     return (
       <div
@@ -144,6 +167,8 @@ export default function GiftEditorPage() {
     )
   }
 
+  const messageContent = (messageSection?.content as MessageSectionContent) || {}
+
   return (
     <div
       className="min-h-screen flex flex-col"
@@ -174,6 +199,25 @@ export default function GiftEditorPage() {
               onReorder={reorderSection}
               onToggleVisibility={toggleVisibility}
             />
+
+            {/* AI Assistant Quick Story Launcher */}
+            <div className="p-4 bg-gradient-to-br from-rose-500/10 via-pink-500/5 to-amber-400/10 border border-rose-200/80 rounded-3xl space-y-2.5">
+              <div className="flex items-center gap-2 text-rose-700 font-semibold text-xs">
+                <Sparkles className="w-4 h-4 text-rose-500" />
+                <span>AI Gift Assistant</span>
+              </div>
+              <p className="text-[11px] text-neutral-600 leading-relaxed">
+                Need inspiration? Generate messages, refine your tone, or craft a complete gift story.
+              </p>
+              <button
+                type="button"
+                onClick={() => handleOpenAI('full_gift')}
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-pink-600 shadow-xs transition-all"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Generate Full Story</span>
+              </button>
+            </div>
           </aside>
 
           {/* Center Column: Active Controls Panel (5 cols) */}
@@ -274,6 +318,7 @@ export default function GiftEditorPage() {
                   onChange={(updates) => updateSectionContent('cover', updates)}
                   recipientName={gift.recipient_name}
                   occasionName={gift.occasion?.name}
+                  onOpenAI={() => handleOpenAI('full_gift')}
                 />
               )}
 
@@ -283,6 +328,7 @@ export default function GiftEditorPage() {
                   content={messageSection.content as MessageSectionContent}
                   onChange={(updates) => updateSectionContent('message', updates)}
                   recipientName={gift.recipient_name}
+                  onOpenAI={(aiMode) => handleOpenAI(aiMode)}
                 />
               )}
 
@@ -344,6 +390,7 @@ export default function GiftEditorPage() {
                   content={finalMessageSection.content as FinalMessageSectionContent}
                   onChange={(updates) => updateSectionContent('final_message', updates)}
                   senderName={gift.sender_name || undefined}
+                  onOpenAI={() => handleOpenAI('full_gift')}
                 />
               )}
             </div>
@@ -387,6 +434,16 @@ export default function GiftEditorPage() {
                 onReorder={reorderSection}
                 onToggleVisibility={toggleVisibility}
               />
+
+              {/* Mobile AI Quick Trigger */}
+              <button
+                type="button"
+                onClick={() => handleOpenAI('generate')}
+                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 shadow-xs"
+              >
+                <Sparkles className="w-4 h-4 text-rose-500" />
+                <span>Open AI Gift Assistant</span>
+              </button>
 
               {/* Active Control Panel */}
               <div className="bg-white rounded-3xl p-6 border border-warm-200 shadow-card">
@@ -456,6 +513,7 @@ export default function GiftEditorPage() {
                     onChange={(updates) => updateSectionContent('cover', updates)}
                     recipientName={gift.recipient_name}
                     occasionName={gift.occasion?.name}
+                    onOpenAI={() => handleOpenAI('full_gift')}
                   />
                 )}
 
@@ -464,6 +522,7 @@ export default function GiftEditorPage() {
                     content={messageSection.content as MessageSectionContent}
                     onChange={(updates) => updateSectionContent('message', updates)}
                     recipientName={gift.recipient_name}
+                    onOpenAI={(aiMode) => handleOpenAI(aiMode)}
                   />
                 )}
 
@@ -520,6 +579,7 @@ export default function GiftEditorPage() {
                     content={finalMessageSection.content as FinalMessageSectionContent}
                     onChange={(updates) => updateSectionContent('final_message', updates)}
                     senderName={gift.sender_name || undefined}
+                    onOpenAI={() => handleOpenAI('full_gift')}
                   />
                 )}
               </div>
@@ -527,6 +587,21 @@ export default function GiftEditorPage() {
           )}
         </div>
       </main>
+
+      {/* AI Assistant Modal (Part 5) */}
+      <AIAssistantModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        initialMode={aiModalMode}
+        giftId={gift.id}
+        occasionName={gift.occasion?.name}
+        recipientName={gift.recipient_name}
+        senderName={gift.sender_name || undefined}
+        currentHeading={messageContent.heading}
+        currentBody={messageContent.body}
+        onApplyMessage={handleApplyAIMessage}
+        onApplyFullGift={handleApplyAIFullGift}
+      />
     </div>
   )
 }

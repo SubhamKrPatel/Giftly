@@ -5,12 +5,14 @@ interface MessageEditorProps {
   content: MessageSectionContent
   onChange: (updates: Partial<MessageSectionContent>) => void
   recipientName?: string
+  onOpenAI?: (mode: 'generate' | 'improve') => void
 }
 
 export default function MessageEditor({
   content,
   onChange,
   recipientName = 'You',
+  onOpenAI,
 }: MessageEditorProps) {
   const heading = content?.heading || ''
   const body = content?.body || ''
@@ -23,12 +25,28 @@ export default function MessageEditor({
           <MessageSquareHeart className="w-4 h-4 text-rose-500" />
           <span>Personal Message Section</span>
         </div>
-        <h2 className="font-serif text-2xl font-semibold text-neutral-800">
-          Heartfelt Message
-        </h2>
-        <p className="text-sm text-neutral-500 mt-1">
-          Write a meaningful note or letter. Your recipient can read this at their own pace.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-2xl font-semibold text-neutral-800">
+              Heartfelt Message
+            </h2>
+            <p className="text-sm text-neutral-500 mt-1">
+              Write a meaningful note or letter. Your recipient can read this at their own pace.
+            </p>
+          </div>
+
+          {onOpenAI && (
+            <button
+              type="button"
+              onClick={() => onOpenAI(body.trim() ? 'improve' : 'generate')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-xs hover:shadow-sm transition-all hover:scale-105 flex-shrink-0"
+              title="Open AI Writing Assistant"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+              <span>AI Assistant</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-5">
@@ -89,21 +107,34 @@ export default function MessageEditor({
             />
           </div>
 
-          {/* AI Helper placeholder (Disabled - Part 5) */}
-          <div className="flex items-center justify-between pt-2">
+          {/* AI Helper actions */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
             <p className="text-xs text-neutral-400">
               Share memories, gratitude, and warm wishes.
             </p>
 
-            <button
-              type="button"
-              disabled
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-400 bg-warm-100 cursor-not-allowed"
-              title="AI message generation will be available in Part 5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Generate with AI (Coming soon)</span>
-            </button>
+            {onOpenAI && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenAI('generate')}
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 text-rose-500" />
+                  <span>Generate for me</span>
+                </button>
+
+                {body.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenAI('improve')}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium text-neutral-700 bg-warm-100 hover:bg-warm-200 transition-colors"
+                  >
+                    <span>Improve draft</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
