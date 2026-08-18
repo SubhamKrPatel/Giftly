@@ -242,18 +242,41 @@ export async function getBatchSignedMediaUrls(
       .from(MEDIA_BUCKET)
       .createSignedUrls(storagePaths, expiresInSeconds)
 
-    if (error || !data) {
-      console.warn('[storage] Batch signed URLs error:', error)
-      return urlMap
-    }
-
-    for (const item of data) {
-      if (item.path && item.signedUrl) {
-        urlMap[item.path] = item.signedUrl
+    if (!error && data && data.length > 0) {
+      for (const item of data) {
+        if (item.path && item.signedUrl) {
+          urlMap[item.path] = item.signedUrl
+        }
       }
+    } else if (error) {
+      console.warn('[storage] Batch signed URLs error:', error.message)
     }
   } catch (err) {
     console.error('[storage] Batch signed URLs exception:', err)
+  }
+
+  // Fallback: individually resolve missing paths
+  for (const path of storagePaths) {
+    if (!urlMap[path]) {
+      try {
+        const { data: singleData } = await supabase.storage
+          .from(MEDIA_BUCKET)
+          .createSignedUrl(path, expiresInSeconds)
+
+        if (singleData?.signedUrl) {
+          urlMap[path] = singleData.signedUrl
+        } else {
+          const { data: pubData } = supabase.storage
+            .from(MEDIA_BUCKET)
+            .getPublicUrl(path)
+          if (pubData?.publicUrl) {
+            urlMap[path] = pubData.publicUrl
+          }
+        }
+      } catch (singleErr) {
+        console.warn('[storage] Single signed URL fallback exception for', path, singleErr)
+      }
+    }
   }
 
   return urlMap
