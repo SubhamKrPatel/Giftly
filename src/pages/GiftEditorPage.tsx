@@ -1,136 +1,48 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Gift,
   Loader2,
-  AlertCircle,
   ArrowLeft,
   User,
   PenTool,
   Type,
-  Heart,
+  FileText,
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/context/AuthContext'
-import type { GiftWithDetails } from '@/lib/database.types'
+import { useGiftEditor } from '@/lib/hooks/useGiftEditor'
+import type {
+  CoverSectionContent,
+  MessageSectionContent,
+  FinalMessageSectionContent,
+} from '@/lib/database.types'
 import Button from '@/components/ui/Button'
 import EditorHeader from '@/components/editor/EditorHeader'
 import EditorSectionList from '@/components/editor/EditorSectionList'
+import CoverEditor from '@/components/editor/CoverEditor'
+import MessageEditor from '@/components/editor/MessageEditor'
+import FinalMessageEditor from '@/components/editor/FinalMessageEditor'
+import ThemePicker from '@/components/editor/ThemePicker'
+import GiftPreview from '@/components/editor/GiftPreview'
 
 export default function GiftEditorPage() {
   const { giftId } = useParams<{ giftId: string }>()
-  const { user } = useAuth()
+  const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('editor')
 
-  const [gift, setGift] = useState<GiftWithDetails | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
-  const [activeSection, setActiveSection] = useState('details')
-
-  // Form editable state
-  const [title, setTitle] = useState('')
-  const [recipientName, setRecipientName] = useState('')
-  const [senderName, setSenderName] = useState('')
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
-  const [saveError, setSaveError] = useState<string | null>(null)
-
-  const isInitialLoad = useRef(true)
-
-  // Fetch gift by ID
-  const fetchGift = useCallback(async () => {
-    if (!giftId || !user) return
-
-    setLoading(true)
-    setNotFound(false)
-    try {
-      const { data, error } = await supabase
-        .from('gifts')
-        .select(`
-          *,
-          occasion:occasions(*),
-          template:templates(*)
-        `)
-        .eq('id', giftId)
-        .single()
-
-      if (error || !data) {
-        setNotFound(true)
-        return
-      }
-
-      const loadedGift = data as unknown as GiftWithDetails
-      setGift(loadedGift)
-      setTitle(loadedGift.title || '')
-      setRecipientName(loadedGift.recipient_name || '')
-      setSenderName(loadedGift.sender_name || '')
-      setSaveStatus('saved')
-    } catch (err) {
-      console.error('[GiftEditorPage] Error fetching gift:', err)
-      setNotFound(true)
-    } finally {
-      setLoading(false)
-    }
-  }, [giftId, user])
-
-  useEffect(() => {
-    fetchGift()
-  }, [fetchGift])
-
-  // Save changes to database
-  const handleSave = useCallback(async () => {
-    if (!giftId || !gift || !recipientName.trim()) return
-
-    setSaveStatus('saving')
-    setSaveError(null)
-
-    try {
-      const { error } = await supabase
-        .from('gifts')
-        .update({
-          title: title.trim() || null,
-          recipient_name: recipientName.trim(),
-          sender_name: senderName.trim() || null,
-        })
-        .eq('id', giftId)
-
-      if (error) throw error
-
-      setSaveStatus('saved')
-      setGift((prev) =>
-        prev
-          ? {
-              ...prev,
-              title: title.trim() || null,
-              recipient_name: recipientName.trim(),
-              sender_name: senderName.trim() || null,
-            }
-          : null
-      )
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : (err as { message?: string })?.message || 'Failed to save changes.'
-      console.error('[GiftEditorPage] Save error:', msg)
-      setSaveError(msg)
-      setSaveStatus('unsaved')
-    }
-  }, [giftId, gift, title, recipientName, senderName])
-
-  // Track unsaved state when fields change
-  const handleFieldChange = (
-    updater: () => void
-  ) => {
-    updater()
-    if (!isInitialLoad.current) {
-      setSaveStatus('unsaved')
-    }
-  }
-
-  useEffect(() => {
-    if (!loading && gift) {
-      isInitialLoad.current = false
-    }
-  }, [loading, gift])
+  const {
+    gift,
+    sections,
+    selectedSectionType,
+    setSelectedSectionType,
+    loading,
+    notFound,
+    saveStatus,
+    updateGiftDetails,
+    updateTheme,
+    updateSectionContent,
+    reorderSection,
+    toggleVisibility,
+    saveAll,
+  } = useGiftEditor(giftId)
 
   if (loading) {
     return (
@@ -173,8 +85,10 @@ export default function GiftEditorPage() {
     )
   }
 
-  const primaryColor = gift.template?.theme_config?.primaryColor || '#f43f5e'
-  const secondaryColor = gift.template?.theme_config?.secondaryColor || '#fda4af'
+  // Find active section content
+  const coverSection = sections.find((s) => s.section_type === 'cover')
+  const messageSection = sections.find((s) => s.section_type === 'message')
+  const finalMessageSection = sections.find((s) => s.section_type === 'final_message')
 
   return (
     <div
@@ -185,213 +99,262 @@ export default function GiftEditorPage() {
     >
       {/* Top Bar Header */}
       <EditorHeader
-        giftTitle={title || `${gift.occasion?.name || 'Gift'} for ${recipientName || 'Someone'}`}
+        giftTitle={gift.title || `${gift.occasion?.name || 'Gift'} for ${gift.recipient_name}`}
         status={gift.status}
         saveStatus={saveStatus}
-        onSave={handleSave}
+        onSave={saveAll}
+        mobileTab={mobileTab}
+        onMobileTabChange={setMobileTab}
       />
 
       {/* Main Workspace Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Sidebar: Section Navigation */}
-          <aside className="lg:col-span-4 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Desktop 3-Column Layout (Always visible on lg+) */}
+        <div className="hidden lg:grid grid-cols-12 gap-6 items-start">
+          {/* Left Column: Section Management (3 cols) */}
+          <aside className="col-span-3 space-y-4 sticky top-24">
             <EditorSectionList
-              activeSection={activeSection}
-              onSectionSelect={setActiveSection}
+              sections={sections}
+              activeSection={selectedSectionType}
+              onSectionSelect={setSelectedSectionType}
+              onReorder={reorderSection}
+              onToggleVisibility={toggleVisibility}
             />
-
-            {/* Gift Info Card */}
-            <div className="bg-white rounded-3xl p-5 border border-warm-200 shadow-sm space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                Gift Summary
-              </h3>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-neutral-500">Occasion:</span>
-                  <span className="font-semibold text-neutral-800 flex items-center gap-1.5">
-                    <span>{gift.occasion?.icon}</span>
-                    <span>{gift.occasion?.name}</span>
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-neutral-500">Template:</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-neutral-800">
-                      {gift.template?.name}
-                    </span>
-                    <div
-                      className="w-3.5 h-3.5 rounded-full border border-white shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-neutral-500">Created:</span>
-                  <span className="text-neutral-700">
-                    {new Date(gift.created_at).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </span>
-                </div>
-              </div>
-            </div>
           </aside>
 
-          {/* Right Main Content Area: Active Section Editor */}
-          <div className="lg:col-span-8 space-y-6">
-            {activeSection === 'details' && (
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-warm-200 shadow-card space-y-6 animate-fade-in-up">
-                <div>
-                  <h2 className="font-serif text-2xl font-semibold text-neutral-800">
-                    Gift Information
-                  </h2>
-                  <p className="text-sm text-neutral-500 mt-1">
-                    Manage the primary details and presentation info for your gift.
-                  </p>
-                </div>
-
-                {saveError && (
-                  <div
-                    role="alert"
-                    className="flex items-start gap-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm"
-                  >
-                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <span>{saveError}</span>
-                  </div>
-                )}
-
-                <div className="space-y-5">
-                  {/* Gift Title */}
+          {/* Center Column: Active Controls Panel (5 cols) */}
+          <div className="col-span-5 space-y-6">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-warm-200 shadow-card">
+              {/* 1. Basic Gift Details Tab */}
+              {selectedSectionType === 'details' && (
+                <div className="space-y-6 animate-fade-in-up">
                   <div>
-                    <label
-                      htmlFor="editTitle"
-                      className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5"
-                    >
-                      Gift Title
-                    </label>
-                    <div className="relative">
-                      <Type className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                      <input
-                        id="editTitle"
-                        type="text"
-                        value={title}
-                        onChange={(e) =>
-                          handleFieldChange(() => setTitle(e.target.value))
-                        }
-                        placeholder="e.g. Happy 25th Birthday Sarah!"
-                        className="w-full pl-10 pr-4 py-3 text-sm border border-warm-300 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all bg-cream-50"
-                      />
+                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1">
+                      <FileText className="w-4 h-4 text-rose-500" />
+                      <span>Gift Information</span>
                     </div>
+                    <h2 className="font-serif text-2xl font-semibold text-neutral-800">
+                      Primary Details
+                    </h2>
+                    <p className="text-sm text-neutral-500 mt-1">
+                      Recipient, sender name, and overall gift title.
+                    </p>
                   </div>
 
-                  {/* Recipient Name */}
-                  <div>
-                    <label
-                      htmlFor="editRecipient"
-                      className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5"
-                    >
-                      Recipient Name <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                      <input
-                        id="editRecipient"
-                        type="text"
-                        value={recipientName}
-                        onChange={(e) =>
-                          handleFieldChange(() => setRecipientName(e.target.value))
-                        }
-                        placeholder="e.g. Sarah"
-                        className="w-full pl-10 pr-4 py-3 text-sm border border-warm-300 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all bg-cream-50"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Sender Name */}
-                  <div>
-                    <label
-                      htmlFor="editSender"
-                      className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5"
-                    >
-                      Sender Name <span className="text-neutral-400 font-normal lowercase">(optional)</span>
-                    </label>
-                    <div className="relative">
-                      <PenTool className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                      <input
-                        id="editSender"
-                        type="text"
-                        value={senderName}
-                        onChange={(e) =>
-                          handleFieldChange(() => setSenderName(e.target.value))
-                        }
-                        placeholder="e.g. Alex"
-                        className="w-full pl-10 pr-4 py-3 text-sm border border-warm-300 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all bg-cream-50"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Visual Preview Box */}
-                <div className="pt-6 border-t border-warm-200">
-                  <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
-                    Card Preview Card
-                  </h4>
-                  <div
-                    className="p-6 rounded-2xl relative overflow-hidden shadow-card text-white flex flex-col justify-between min-h-[160px]"
-                    style={{
-                      background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xl drop-shadow-sm">{gift.occasion?.icon || '🎁'}</span>
-                      <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium">
-                        {gift.occasion?.name}
-                      </span>
+                  <div className="space-y-4">
+                    <div>
+                      <label
+                        htmlFor="giftTitleInput"
+                        className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5"
+                      >
+                        Gift Title
+                      </label>
+                      <div className="relative">
+                        <Type className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                        <input
+                          id="giftTitleInput"
+                          type="text"
+                          value={gift.title || ''}
+                          onChange={(e) => updateGiftDetails({ title: e.target.value })}
+                          placeholder={`e.g. Happy ${gift.occasion?.name || 'Birthday'}!`}
+                          className="w-full pl-10 pr-4 py-3 text-sm border border-warm-300 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all bg-cream-50"
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <h3 className="font-serif text-xl sm:text-2xl font-bold tracking-tight drop-shadow-sm">
-                        {title || `A special gift for ${recipientName || 'someone special'}`}
-                      </h3>
-                      {senderName && (
-                        <p className="text-xs sm:text-sm text-white/90 mt-1">
-                          With love from {senderName}
-                        </p>
-                      )}
+                      <label
+                        htmlFor="recipientInput"
+                        className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5"
+                      >
+                        Recipient Name
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                        <input
+                          id="recipientInput"
+                          type="text"
+                          value={gift.recipient_name || ''}
+                          onChange={(e) => updateGiftDetails({ recipient_name: e.target.value })}
+                          placeholder="e.g. Sarah"
+                          className="w-full pl-10 pr-4 py-3 text-sm border border-warm-300 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all bg-cream-50"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="senderInput"
+                        className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1.5"
+                      >
+                        Sender Name
+                      </label>
+                      <div className="relative">
+                        <PenTool className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                        <input
+                          id="senderInput"
+                          type="text"
+                          value={gift.sender_name || ''}
+                          onChange={(e) => updateGiftDetails({ sender_name: e.target.value })}
+                          placeholder="e.g. Alex"
+                          className="w-full pl-10 pr-4 py-3 text-sm border border-warm-300 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all bg-cream-50"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
+              )}
 
-                {/* Save button footer */}
-                <div className="flex justify-end pt-4">
-                  <Button
-                    onClick={handleSave}
-                    disabled={saveStatus === 'saving' || !recipientName.trim()}
-                    size="lg"
-                  >
-                    {saveStatus === 'saving' ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Saving Changes…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Heart className="w-4 h-4 fill-white" />
-                        <span>Save Changes</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
+              {/* 2. Theme Customization Tab */}
+              {selectedSectionType === 'theme' && (
+                <ThemePicker
+                  currentTheme={gift.theme_config}
+                  onSelectTheme={updateTheme}
+                />
+              )}
+
+              {/* 3. Cover Section Editor */}
+              {selectedSectionType === 'cover' && coverSection && (
+                <CoverEditor
+                  content={coverSection.content as CoverSectionContent}
+                  onChange={(updates) => updateSectionContent('cover', updates)}
+                  recipientName={gift.recipient_name}
+                  occasionName={gift.occasion?.name}
+                />
+              )}
+
+              {/* 4. Message Section Editor */}
+              {selectedSectionType === 'message' && messageSection && (
+                <MessageEditor
+                  content={messageSection.content as MessageSectionContent}
+                  onChange={(updates) => updateSectionContent('message', updates)}
+                  recipientName={gift.recipient_name}
+                />
+              )}
+
+              {/* 5. Final Message Section Editor */}
+              {selectedSectionType === 'final_message' && finalMessageSection && (
+                <FinalMessageEditor
+                  content={finalMessageSection.content as FinalMessageSectionContent}
+                  onChange={(updates) => updateSectionContent('final_message', updates)}
+                  senderName={gift.sender_name || undefined}
+                />
+              )}
+            </div>
           </div>
+
+          {/* Right Column: Live Mobile Preview (4 cols) */}
+          <aside className="col-span-4 sticky top-24">
+            <GiftPreview gift={gift} sections={sections} activeSectionType={selectedSectionType} />
+          </aside>
+        </div>
+
+        {/* Mobile View (<lg screens) */}
+        <div className="block lg:hidden space-y-6">
+          {mobileTab === 'preview' ? (
+            <div className="py-4">
+              <GiftPreview gift={gift} sections={sections} activeSectionType={selectedSectionType} />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Section Selector */}
+              <EditorSectionList
+                sections={sections}
+                activeSection={selectedSectionType}
+                onSectionSelect={setSelectedSectionType}
+                onReorder={reorderSection}
+                onToggleVisibility={toggleVisibility}
+              />
+
+              {/* Active Control Panel */}
+              <div className="bg-white rounded-3xl p-6 border border-warm-200 shadow-card">
+                {selectedSectionType === 'details' && (
+                  <div className="space-y-4 animate-fade-in-up">
+                    <h2 className="font-serif text-xl font-semibold text-neutral-800">
+                      Primary Details
+                    </h2>
+                    <div>
+                      <label
+                        htmlFor="mGiftTitleInput"
+                        className="block text-xs font-semibold text-neutral-700 uppercase mb-1"
+                      >
+                        Gift Title
+                      </label>
+                      <input
+                        id="mGiftTitleInput"
+                        type="text"
+                        value={gift.title || ''}
+                        onChange={(e) => updateGiftDetails({ title: e.target.value })}
+                        className="w-full px-4 py-2.5 text-sm border border-warm-300 rounded-xl bg-cream-50"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="mRecipientInput"
+                        className="block text-xs font-semibold text-neutral-700 uppercase mb-1"
+                      >
+                        Recipient Name
+                      </label>
+                      <input
+                        id="mRecipientInput"
+                        type="text"
+                        value={gift.recipient_name || ''}
+                        onChange={(e) => updateGiftDetails({ recipient_name: e.target.value })}
+                        className="w-full px-4 py-2.5 text-sm border border-warm-300 rounded-xl bg-cream-50"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="mSenderInput"
+                        className="block text-xs font-semibold text-neutral-700 uppercase mb-1"
+                      >
+                        Sender Name
+                      </label>
+                      <input
+                        id="mSenderInput"
+                        type="text"
+                        value={gift.sender_name || ''}
+                        onChange={(e) => updateGiftDetails({ sender_name: e.target.value })}
+                        className="w-full px-4 py-2.5 text-sm border border-warm-300 rounded-xl bg-cream-50"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {selectedSectionType === 'theme' && (
+                  <ThemePicker
+                    currentTheme={gift.theme_config}
+                    onSelectTheme={updateTheme}
+                  />
+                )}
+
+                {selectedSectionType === 'cover' && coverSection && (
+                  <CoverEditor
+                    content={coverSection.content as CoverSectionContent}
+                    onChange={(updates) => updateSectionContent('cover', updates)}
+                    recipientName={gift.recipient_name}
+                    occasionName={gift.occasion?.name}
+                  />
+                )}
+
+                {selectedSectionType === 'message' && messageSection && (
+                  <MessageEditor
+                    content={messageSection.content as MessageSectionContent}
+                    onChange={(updates) => updateSectionContent('message', updates)}
+                    recipientName={gift.recipient_name}
+                  />
+                )}
+
+                {selectedSectionType === 'final_message' && finalMessageSection && (
+                  <FinalMessageEditor
+                    content={finalMessageSection.content as FinalMessageSectionContent}
+                    onChange={(updates) => updateSectionContent('final_message', updates)}
+                    senderName={gift.sender_name || undefined}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

@@ -76,6 +76,15 @@ export default function CreatePage() {
       const giftTitle =
         title.trim() || `${selectedOccasion.name} Gift for ${recipientName.trim()}`
 
+      // 1. Create gift with template theme_config copied over
+      const themeConfig = selectedTemplate.theme_config || {
+        primaryColor: '#f43f5e',
+        secondaryColor: '#fda4af',
+        accentColor: '#e11d48',
+        backgroundColor: '#fff1f2',
+        textColor: '#1f2937',
+      }
+
       const { data: newGift, error } = await supabase
         .from('gifts')
         .insert({
@@ -85,6 +94,7 @@ export default function CreatePage() {
           recipient_name: recipientName.trim(),
           sender_name: senderName.trim() || null,
           title: giftTitle,
+          theme_config: themeConfig,
           status: 'draft',
         })
         .select()
@@ -94,7 +104,52 @@ export default function CreatePage() {
         throw error
       }
 
+      // 2. Initialize default gift sections
       if (newGift) {
+        const initialSections = [
+          {
+            gift_id: newGift.id,
+            section_type: 'cover',
+            position: 0,
+            content: {
+              headline: `Happy ${selectedOccasion.name}! ❤️`,
+              subheadline: `A special surprise crafted for ${recipientName.trim()}.`,
+            },
+            is_visible: true,
+          },
+          {
+            gift_id: newGift.id,
+            section_type: 'message',
+            position: 1,
+            content: {
+              heading: 'A Message For You',
+              body: `Dear ${recipientName.trim()},\n\nWishing you a wonderful day filled with happiness and joy.`,
+            },
+            is_visible: true,
+          },
+          {
+            gift_id: newGift.id,
+            section_type: 'gallery',
+            position: 2,
+            content: {
+              items: [],
+            },
+            is_visible: true,
+          },
+          {
+            gift_id: newGift.id,
+            section_type: 'final_message',
+            position: 3,
+            content: {
+              heading: 'With Love',
+              body: 'I hope this little surprise made you smile!',
+            },
+            is_visible: true,
+          },
+        ]
+
+        await supabase.from('gift_sections').insert(initialSections)
+
         navigate(`/create/${newGift.id}`)
       }
     } catch (err: unknown) {

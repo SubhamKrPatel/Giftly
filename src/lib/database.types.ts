@@ -1,16 +1,65 @@
-// Database types for Giftly Part 3.
-// Extended with occasions, templates, and gifts tables.
+// Database types for Giftly Part 4A.
+// Extended with gift_sections table and gifts.theme_config.
 // Structure follows the @supabase/supabase-js Database generic contract.
 
 export interface TemplateThemeConfig {
   primaryColor: string
   secondaryColor: string
   accentColor?: string
+  backgroundColor?: string
+  textColor?: string
   backgroundGradient?: string
   fontFamily?: string
   tag?: string
   [key: string]: unknown
 }
+
+export interface GiftThemeConfig {
+  primaryColor: string
+  secondaryColor: string
+  accentColor?: string
+  backgroundColor?: string
+  textColor?: string
+  backgroundGradient?: string
+  fontFamily?: string
+  tag?: string
+  [key: string]: unknown
+}
+
+export interface CoverSectionContent {
+  headline: string
+  subheadline?: string
+}
+
+export interface MessageSectionContent {
+  heading: string
+  body: string
+}
+
+export interface FinalMessageSectionContent {
+  heading: string
+  body: string
+}
+
+export interface GallerySectionContent {
+  items: Array<{ id: string; url?: string; caption?: string }>
+}
+
+export type SectionType =
+  | 'cover'
+  | 'message'
+  | 'gallery'
+  | 'video'
+  | 'voice'
+  | 'music'
+  | 'final_message'
+
+export type SectionContent =
+  | CoverSectionContent
+  | MessageSectionContent
+  | FinalMessageSectionContent
+  | GallerySectionContent
+  | Record<string, unknown>
 
 export interface Database {
   public: {
@@ -132,6 +181,7 @@ export interface Database {
           title: string | null
           recipient_name: string
           sender_name: string | null
+          theme_config: GiftThemeConfig
           status: 'draft' | 'published'
           created_at: string
           updated_at: string
@@ -144,6 +194,7 @@ export interface Database {
           title?: string | null
           recipient_name: string
           sender_name?: string | null
+          theme_config?: GiftThemeConfig
           status?: 'draft' | 'published'
           created_at?: string
           updated_at?: string
@@ -156,6 +207,7 @@ export interface Database {
           title?: string | null
           recipient_name?: string
           sender_name?: string | null
+          theme_config?: GiftThemeConfig
           status?: 'draft' | 'published'
           updated_at?: string
         }
@@ -172,6 +224,46 @@ export interface Database {
             columns: ['template_id']
             isOneToOne: false
             referencedRelation: 'templates'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      gift_sections: {
+        Row: {
+          id: string
+          gift_id: string
+          section_type: SectionType | string
+          position: number
+          content: SectionContent
+          is_visible: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          gift_id: string
+          section_type: SectionType | string
+          position?: number
+          content?: SectionContent
+          is_visible?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          gift_id?: string
+          section_type?: SectionType | string
+          position?: number
+          content?: SectionContent
+          is_visible?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'gift_sections_gift_id_fkey'
+            columns: ['gift_id']
+            isOneToOne: false
+            referencedRelation: 'gifts'
             referencedColumns: ['id']
           },
         ]
@@ -208,6 +300,10 @@ export type TemplateUpdate = Database['public']['Tables']['templates']['Update']
 export type Gift = Database['public']['Tables']['gifts']['Row']
 export type GiftInsert = Database['public']['Tables']['gifts']['Insert']
 export type GiftUpdate = Database['public']['Tables']['gifts']['Update']
+
+export type GiftSection = Database['public']['Tables']['gift_sections']['Row']
+export type GiftSectionInsert = Database['public']['Tables']['gift_sections']['Insert']
+export type GiftSectionUpdate = Database['public']['Tables']['gift_sections']['Update']
 
 // Convenience joined type
 export type GiftWithDetails = Gift & {
