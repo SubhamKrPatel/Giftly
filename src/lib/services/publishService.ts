@@ -57,30 +57,50 @@ export async function publishGift(giftId: string): Promise<{
     }
 
     // Direct database fallback for local development
+    // First query basic gift information
     const { data: currentGift, error: fetchErr } = await supabase
       .from('gifts')
-      .select('recipient_name, public_slug')
+      .select('*')
       .eq('id', giftId)
       .single()
 
     if (fetchErr || !currentGift) {
-      return { success: false, error: 'Gift not found.' }
+      console.error('[publishService] Fetch gift error:', fetchErr)
+      return {
+        success: false,
+        error: fetchErr?.message || 'Gift not found.',
+      }
     }
 
     if (!currentGift.recipient_name?.trim()) {
       return { success: false, error: 'Recipient name is required before publishing.' }
     }
 
-    const slug = currentGift.public_slug || generateLocalSlug(8)
+    const slug = (currentGift as unknown as { public_slug?: string | null }).public_slug || generateLocalSlug(8)
 
-    const { error: updateErr } = await supabase
+    // Try updating status and public_slug
+    let { error: updateErr } = await supabase
       .from('gifts')
       .update({
-        status: 'published',
+        status: 'published' as const,
         public_slug: slug,
         updated_at: new Date().toISOString(),
       })
       .eq('id', giftId)
+
+    // If public_slug column is missing from PostgreSQL schema cache, fallback to updating status only
+    if (updateErr && updateErr.message?.includes('public_slug')) {
+      console.warn('[publishService] public_slug column not found in schema cache. Updating status only.')
+      const fallbackResult = await supabase
+        .from('gifts')
+        .update({
+          status: 'published' as const,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', giftId)
+
+      updateErr = fallbackResult.error
+    }
 
     if (updateErr) {
       return { success: false, error: updateErr.message }
