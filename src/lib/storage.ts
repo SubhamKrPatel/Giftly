@@ -278,3 +278,63 @@ export async function deleteMediaFromStorage(
     return { error: new Error(msg) }
   }
 }
+
+/**
+ * Delete all binary storage objects associated with a gift:
+ * gifts/{userId}/{giftId}/*
+ */
+export async function deleteAllGiftMediaFromStorage(
+  userId: string,
+  giftId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const folders = ['images', 'videos', 'voice', 'music']
+    const pathsToDelete: string[] = []
+
+    for (const folder of folders) {
+      const folderPath = `gifts/${userId}/${giftId}/${folder}`
+      const { data: files, error: listError } = await supabase.storage
+        .from(MEDIA_BUCKET)
+        .list(folderPath)
+
+      if (!listError && files && files.length > 0) {
+        for (const file of files) {
+          if (file.name && file.name !== '.emptyFolderPlaceholder') {
+            pathsToDelete.push(`${folderPath}/${file.name}`)
+          }
+        }
+      }
+    }
+
+    // Also list direct root folder gifts/${userId}/${giftId}
+    const rootPath = `gifts/${userId}/${giftId}`
+    const { data: rootFiles, error: rootListError } = await supabase.storage
+      .from(MEDIA_BUCKET)
+      .list(rootPath)
+
+    if (!rootListError && rootFiles && rootFiles.length > 0) {
+      for (const file of rootFiles) {
+        if (file.name && !folders.includes(file.name) && file.name !== '.emptyFolderPlaceholder') {
+          pathsToDelete.push(`${rootPath}/${file.name}`)
+        }
+      }
+    }
+
+    if (pathsToDelete.length > 0) {
+      const { error: removeError } = await supabase.storage
+        .from(MEDIA_BUCKET)
+        .remove(pathsToDelete)
+
+      if (removeError) {
+        console.warn('[storage] Error removing batch storage paths:', removeError.message)
+      }
+    }
+
+    return { success: true }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Storage folder cleanup failed'
+    console.error('[storage] Delete all gift media error:', msg)
+    return { success: false, error: msg }
+  }
+}
+
