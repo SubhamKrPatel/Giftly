@@ -178,6 +178,7 @@ export default function GiftEditorPage() {
     >
       {/* Top Bar Header */}
       <EditorHeader
+        giftId={gift.id}
         giftTitle={gift.title || `${gift.occasion?.name || 'Gift'} for ${gift.recipient_name}`}
         status={gift.status}
         saveStatus={saveStatus}

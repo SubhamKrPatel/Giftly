@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Check, Loader2, Save, Eye, Edit3, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, Save, Eye, Edit3, AlertCircle, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface EditorHeaderProps {
+  giftId?: string
   giftTitle: string
   status: 'draft' | 'published'
   saveStatus: 'saved' | 'saving' | 'unsaved' | 'error'
@@ -12,6 +13,7 @@ interface EditorHeaderProps {
 }
 
 export default function EditorHeader({
+  giftId,
   giftTitle,
   status,
   saveStatus,
@@ -115,6 +117,20 @@ export default function EditorHeader({
               </>
             )}
           </div>
+
+          {/* Recipient View Link (Part 6) */}
+          {giftId && (
+            <Link
+              to={`/gift-preview/${giftId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-neutral-700 hover:text-rose-600 bg-warm-100 hover:bg-warm-200 transition-colors shadow-xs"
+              title="Open full recipient experience in a new tab"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Recipient View</span>
+            </Link>
+          )}
 
           {/* Manual Save button */}
           <button

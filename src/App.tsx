@@ -17,6 +17,7 @@ const HowItWorksPage  = lazy(() => import('@/pages/HowItWorksPage'))
 const LoginPage       = lazy(() => import('@/pages/LoginPage'))
 const SignupPage      = lazy(() => import('@/pages/SignupPage'))
 const DashboardPage   = lazy(() => import('@/pages/DashboardPage'))
+const RecipientGiftPage = lazy(() => import('@/pages/RecipientGiftPage'))
 
 export default function App() {
   return (
@@ -39,6 +40,14 @@ export default function App() {
               element={
                 <RequireAuth>
                   <GiftEditorPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/gift-preview/:giftId"
+              element={
+                <RequireAuth>
+                  <RecipientGiftPage />
                 </RequireAuth>
               }
             />
