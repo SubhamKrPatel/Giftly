@@ -187,6 +187,7 @@ export interface Database {
           sender_name: string | null
           theme_config: GiftThemeConfig
           status: 'draft' | 'published'
+          public_slug: string | null
           created_at: string
           updated_at: string
         }
@@ -200,6 +201,7 @@ export interface Database {
           sender_name?: string | null
           theme_config?: GiftThemeConfig
           status?: 'draft' | 'published'
+          public_slug?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -213,6 +215,7 @@ export interface Database {
           sender_name?: string | null
           theme_config?: GiftThemeConfig
           status?: 'draft' | 'published'
+          public_slug?: string | null
           updated_at?: string
         }
         Relationships: [

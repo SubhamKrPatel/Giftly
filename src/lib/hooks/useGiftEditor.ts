@@ -11,6 +11,7 @@ import type {
   FinalMessageSectionContent,
 } from '@/lib/database.types'
 import { DEFAULT_THEME } from '@/config/themes'
+import { publishGift as apiPublishGift, unpublishGift as apiUnpublishGift } from '@/lib/services/publishService'
 
 export type EditorTab = 'details' | 'cover' | 'message' | 'final_message' | 'theme' | string
 
@@ -357,6 +358,40 @@ export function useGiftEditor(giftId?: string | null) {
     [triggerAutosave]
   )
 
+  // Publish Gift (Part 7)
+  const publish = useCallback(async (): Promise<{
+    success: boolean
+    public_slug?: string
+    error?: string
+  }> => {
+    if (!giftId) return { success: false, error: 'Missing gift ID' }
+
+    // Save pending edits first
+    await saveAll()
+
+    const res = await apiPublishGift(giftId)
+    if (res.success && res.public_slug) {
+      setGift((prev) =>
+        prev ? { ...prev, status: 'published', public_slug: res.public_slug! } : null
+      )
+    }
+    return res
+  }, [giftId, saveAll])
+
+  // Unpublish Gift (Part 7)
+  const unpublish = useCallback(async (): Promise<{
+    success: boolean
+    error?: string
+  }> => {
+    if (!giftId) return { success: false, error: 'Missing gift ID' }
+
+    const res = await apiUnpublishGift(giftId)
+    if (res.success) {
+      setGift((prev) => (prev ? { ...prev, status: 'draft' } : null))
+    }
+    return res
+  }, [giftId])
+
   return {
     gift,
     sections,
@@ -372,6 +407,8 @@ export function useGiftEditor(giftId?: string | null) {
     reorderSection,
     toggleVisibility,
     saveAll,
+    publish,
+    unpublish,
     refetch: fetchGiftAndSections,
   }
 }

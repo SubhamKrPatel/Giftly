@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom'
-import { Calendar, Trash2, ArrowRight, User } from 'lucide-react'
+import { Calendar, Trash2, ArrowRight, User, Share2, ExternalLink } from 'lucide-react'
 import type { GiftWithDetails } from '@/lib/database.types'
 import { cn } from '@/lib/utils'
 
 interface GiftCardProps {
   gift: GiftWithDetails
   onDeleteClick: (gift: GiftWithDetails) => void
+  onShareClick?: (gift: GiftWithDetails) => void
 }
 
-export default function GiftCard({ gift, onDeleteClick }: GiftCardProps) {
+export default function GiftCard({ gift, onDeleteClick, onShareClick }: GiftCardProps) {
   const primaryColor = gift.template?.theme_config?.primaryColor || '#f43f5e'
   const secondaryColor = gift.template?.theme_config?.secondaryColor || '#fda4af'
 
@@ -79,7 +80,35 @@ export default function GiftCard({ gift, onDeleteClick }: GiftCardProps) {
             {formattedDate}
           </span>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {/* Share action for published gift */}
+            {gift.status === 'published' && gift.public_slug && (
+              <>
+                {onShareClick && (
+                  <button
+                    type="button"
+                    onClick={() => onShareClick(gift)}
+                    className="p-2 text-neutral-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors"
+                    title="Share gift link"
+                    aria-label="Share gift link"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                )}
+
+                <a
+                  href={`/g/${gift.public_slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 text-neutral-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                  title="Open live public gift"
+                  aria-label="Open live public gift"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </>
+            )}
+
             {/* Delete button */}
             <button
               type="button"

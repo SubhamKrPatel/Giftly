@@ -33,6 +33,9 @@ import FinalMessageEditor from '@/components/editor/FinalMessageEditor'
 import ThemePicker from '@/components/editor/ThemePicker'
 import GiftPreview from '@/components/editor/GiftPreview'
 import AIAssistantModal from '@/components/ai/AIAssistantModal'
+import PublishModal from '@/components/publishing/PublishModal'
+import UnpublishModal from '@/components/publishing/UnpublishModal'
+import ShareModal from '@/components/publishing/ShareModal'
 
 export default function GiftEditorPage() {
   const { giftId } = useParams<{ giftId: string }>()
@@ -41,6 +44,11 @@ export default function GiftEditorPage() {
   // AI Assistant Modal State (Part 5)
   const [isAIModalOpen, setIsAIModalOpen] = useState(false)
   const [aiModalMode, setAiModalMode] = useState<'generate' | 'improve' | 'full_gift'>('generate')
+
+  // Publishing Modals State (Part 7)
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false)
+  const [isUnpublishModalOpen, setIsUnpublishModalOpen] = useState(false)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
   const {
     gift,
@@ -56,6 +64,8 @@ export default function GiftEditorPage() {
     reorderSection,
     toggleVisibility,
     saveAll,
+    publish,
+    unpublish,
   } = useGiftEditor(giftId)
 
   // Find active section content
@@ -183,6 +193,9 @@ export default function GiftEditorPage() {
         status={gift.status}
         saveStatus={saveStatus}
         onSave={saveAll}
+        onPublishClick={() => setIsPublishModalOpen(true)}
+        onShareClick={() => setIsShareModalOpen(true)}
+        onUnpublishClick={() => setIsUnpublishModalOpen(true)}
         mobileTab={mobileTab}
         onMobileTabChange={setMobileTab}
       />
@@ -603,6 +616,32 @@ export default function GiftEditorPage() {
         onApplyMessage={handleApplyAIMessage}
         onApplyFullGift={handleApplyAIFullGift}
       />
+
+      {/* Publish Modal (Part 7) */}
+      <PublishModal
+        isOpen={isPublishModalOpen}
+        onClose={() => setIsPublishModalOpen(false)}
+        recipientName={gift.recipient_name}
+        onPublish={publish}
+      />
+
+      {/* Unpublish Modal (Part 7) */}
+      <UnpublishModal
+        isOpen={isUnpublishModalOpen}
+        onClose={() => setIsUnpublishModalOpen(false)}
+        onConfirm={unpublish}
+      />
+
+      {/* Share Modal (Part 7) */}
+      {gift.public_slug && (
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          publicSlug={gift.public_slug}
+          recipientName={gift.recipient_name}
+          onUnpublishClick={() => setIsUnpublishModalOpen(true)}
+        />
+      )}
     </div>
   )
 }

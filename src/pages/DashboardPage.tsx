@@ -9,6 +9,9 @@ import type { GiftWithDetails } from '@/lib/database.types'
 import ProfileModal from '@/components/dashboard/ProfileModal'
 import GiftCard from '@/components/dashboard/GiftCard'
 import DeleteGiftDialog from '@/components/dashboard/DeleteGiftDialog'
+import ShareModal from '@/components/publishing/ShareModal'
+import UnpublishModal from '@/components/publishing/UnpublishModal'
+import { unpublishGift } from '@/lib/services/publishService'
 
 export default function DashboardPage() {
   const { user, profile, profileLoading, signOut } = useAuth()
@@ -18,6 +21,10 @@ export default function DashboardPage() {
 
   // Gift deletion state
   const [giftToDelete, setGiftToDelete] = useState<GiftWithDetails | null>(null)
+
+  // Gift share & unpublish state (Part 7)
+  const [giftToShare, setGiftToShare] = useState<GiftWithDetails | null>(null)
+  const [giftToUnpublish, setGiftToUnpublish] = useState<GiftWithDetails | null>(null)
 
   // Data hook
   const { gifts, loading: giftsLoading, error: giftsError, refetch: refetchGifts, deleteGift } = useGifts()
@@ -164,6 +171,7 @@ export default function DashboardPage() {
                 key={gift.id}
                 gift={gift}
                 onDeleteClick={(selectedGift) => setGiftToDelete(selectedGift)}
+                onShareClick={(selectedGift) => setGiftToShare(selectedGift)}
               />
             ))}
           </div>
@@ -202,6 +210,35 @@ export default function DashboardPage() {
         onClose={() => setGiftToDelete(null)}
         onConfirm={handleConfirmDelete}
       />
+
+      {/* Share Modal (Part 7) */}
+      {giftToShare?.public_slug && (
+        <ShareModal
+          isOpen={Boolean(giftToShare)}
+          onClose={() => setGiftToShare(null)}
+          publicSlug={giftToShare.public_slug}
+          recipientName={giftToShare.recipient_name}
+          onUnpublishClick={() => {
+            setGiftToUnpublish(giftToShare)
+            setGiftToShare(null)
+          }}
+        />
+      )}
+
+      {/* Unpublish Modal (Part 7) */}
+      {giftToUnpublish && (
+        <UnpublishModal
+          isOpen={Boolean(giftToUnpublish)}
+          onClose={() => setGiftToUnpublish(null)}
+          onConfirm={async () => {
+            const res = await unpublishGift(giftToUnpublish.id)
+            if (res.success) {
+              await refetchGifts()
+            }
+            return res
+          }}
+        />
+      )}
 
       {/* Profile modal */}
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}

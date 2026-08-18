@@ -1,5 +1,16 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Check, Loader2, Save, Eye, Edit3, AlertCircle, ExternalLink } from 'lucide-react'
+import {
+  ArrowLeft,
+  Check,
+  Loader2,
+  Save,
+  Eye,
+  Edit3,
+  AlertCircle,
+  ExternalLink,
+  Globe,
+  Share2,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface EditorHeaderProps {
@@ -8,6 +19,9 @@ interface EditorHeaderProps {
   status: 'draft' | 'published'
   saveStatus: 'saved' | 'saving' | 'unsaved' | 'error'
   onSave: () => void
+  onPublishClick?: () => void
+  onShareClick?: () => void
+  onUnpublishClick?: () => void
   mobileTab?: 'editor' | 'preview'
   onMobileTabChange?: (tab: 'editor' | 'preview') => void
 }
@@ -18,6 +32,9 @@ export default function EditorHeader({
   status,
   saveStatus,
   onSave,
+  onPublishClick,
+  onShareClick,
+  onUnpublishClick,
   mobileTab = 'editor',
   onMobileTabChange,
 }: EditorHeaderProps) {
@@ -124,12 +141,52 @@ export default function EditorHeader({
               to={`/gift-preview/${giftId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-neutral-700 hover:text-rose-600 bg-warm-100 hover:bg-warm-200 transition-colors shadow-xs"
-              title="Open full recipient experience in a new tab"
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold text-neutral-600 hover:text-rose-600 bg-warm-100 hover:bg-warm-200 transition-colors shadow-xs"
+              title="Open recipient preview in a new tab"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Recipient View</span>
+              <span>Preview</span>
             </Link>
+          )}
+
+          {/* Publishing Controls (Part 7) */}
+          {status === 'draft' && onPublishClick && (
+            <button
+              type="button"
+              onClick={onPublishClick}
+              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all shadow-xs hover:shadow-sm"
+              title="Publish gift and generate unique share link"
+            >
+              <Globe className="w-3.5 h-3.5 text-rose-500" />
+              <span>Publish</span>
+            </button>
+          )}
+
+          {status === 'published' && (
+            <div className="flex items-center gap-1.5">
+              {onShareClick && (
+                <button
+                  type="button"
+                  onClick={onShareClick}
+                  className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all shadow-xs"
+                  title="Share public gift link"
+                >
+                  <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Share</span>
+                </button>
+              )}
+
+              {onUnpublishClick && (
+                <button
+                  type="button"
+                  onClick={onUnpublishClick}
+                  className="hidden sm:inline-flex items-center gap-1 px-2.5 py-2 rounded-full text-xs font-medium text-neutral-400 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+                  title="Unpublish this gift"
+                >
+                  <span>Unpublish</span>
+                </button>
+              )}
+            </div>
           )}
 
           {/* Manual Save button */}

@@ -52,6 +52,12 @@ export default function App() {
               }
             />
 
+            {/* ── Public anonymous recipient experience route (Part 7) ── */}
+            <Route
+              path="/g/:publicSlug"
+              element={<RecipientGiftPage />}
+            />
+
             {/* ── Protected dashboard — no public Navbar/Footer ── */}
             <Route
               path="/dashboard"

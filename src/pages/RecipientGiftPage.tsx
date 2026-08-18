@@ -26,10 +26,11 @@ import type {
 } from '@/lib/database.types'
 import { getBatchSignedMediaUrls } from '@/lib/storage'
 import { DEFAULT_THEME } from '@/config/themes'
+import { getPublicGift } from '@/lib/services/publishService'
 import PhotoLightbox from '@/components/recipient/PhotoLightbox'
 
 export default function RecipientGiftPage() {
-  const { giftId } = useParams<{ giftId: string }>()
+  const { giftId, publicSlug } = useParams<{ giftId?: string; publicSlug?: string }>()
 
   const [gift, setGift] = useState<GiftWithDetails | null>(null)
   const [sections, setSections] = useState<GiftSection[]>([])
@@ -46,62 +47,90 @@ export default function RecipientGiftPage() {
   // Fetch gift details, visible sections, and media
   useEffect(() => {
     async function loadRecipientGift() {
-      if (!giftId) return
+      if (!giftId && !publicSlug) {
+        setNotFound(true)
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       setNotFound(false)
 
       try {
-        // 1. Fetch gift with occasion and template
-        const { data: giftData, error: giftError } = await supabase
-          .from('gifts')
-          .select(`
-            *,
-            occasion:occasions(*),
-            template:templates(*)
-          `)
-          .eq('id', giftId)
-          .single()
+        // Mode A: Public Anonymous Access via /g/:publicSlug
+        if (publicSlug) {
+          const res = await getPublicGift(publicSlug)
+          if (res.error || !res.data) {
+            setNotFound(true)
+            return
+          }
 
-        if (giftError || !giftData) {
-          setNotFound(true)
+          const pubGift = res.data.gift as unknown as GiftWithDetails
+          setGift(pubGift)
+          setSections(res.data.sections)
+          setMediaItems(res.data.media)
+
+          // Update page title
+          document.title = pubGift.title || `${pubGift.occasion?.name || 'A Special Gift'} for ${pubGift.recipient_name}`
           return
         }
 
-        const loadedGift = giftData as unknown as GiftWithDetails
-        if (!loadedGift.theme_config || Object.keys(loadedGift.theme_config).length === 0) {
-          loadedGift.theme_config = DEFAULT_THEME
-        }
-        setGift(loadedGift)
+        // Mode B: Creator Preview via /gift-preview/:giftId
+        if (giftId) {
+          const { data: giftData, error: giftError } = await supabase
+            .from('gifts')
+            .select(`
+              *,
+              occasion:occasions(*),
+              template:templates(*)
+            `)
+            .eq('id', giftId)
+            .single()
 
-        // 2. Fetch visible sections
-        const { data: sectionData, error: sectionError } = await supabase
-          .from('gift_sections')
-          .select('*')
-          .eq('gift_id', giftId)
-          .eq('is_visible', true)
-          .order('position', { ascending: true })
+          if (giftError || !giftData) {
+            setNotFound(true)
+            return
+          }
 
-        if (sectionError) throw sectionError
-        setSections((sectionData as GiftSection[]) || [])
+          const loadedGift = giftData as unknown as GiftWithDetails
+          if (!loadedGift.theme_config || Object.keys(loadedGift.theme_config).length === 0) {
+            loadedGift.theme_config = DEFAULT_THEME
+          }
+          setGift(loadedGift)
 
-        // 3. Fetch media items & resolve signed URLs
-        const { data: mediaData, error: mediaError } = await supabase
-          .from('gift_media')
-          .select('*')
-          .eq('gift_id', giftId)
-          .order('position', { ascending: true })
+          // Update page title
+          document.title = loadedGift.title || `${loadedGift.occasion?.name || 'Gift'} for ${loadedGift.recipient_name}`
 
-        if (!mediaError && mediaData) {
-          const rawMedia = mediaData as GiftMedia[]
-          const paths = rawMedia.map((m) => m.storage_path)
-          const urlMap = await getBatchSignedMediaUrls(paths)
+          // Fetch visible sections
+          const { data: sectionData, error: sectionError } = await supabase
+            .from('gift_sections')
+            .select('*')
+            .eq('gift_id', giftId)
+            .eq('is_visible', true)
+            .order('position', { ascending: true })
 
-          const resolvedMedia: GiftMediaItem[] = rawMedia.map((m) => ({
-            ...m,
-            signedUrl: urlMap[m.storage_path] || undefined,
-          }))
+          if (sectionError) throw sectionError
+          setSections((sectionData as GiftSection[]) || [])
 
-          setMediaItems(resolvedMedia)
+          // Fetch media items & resolve signed URLs
+          const { data: mediaData, error: mediaError } = await supabase
+            .from('gift_media')
+            .select('*')
+            .eq('gift_id', giftId)
+            .order('position', { ascending: true })
+
+          if (!mediaError && mediaData) {
+            const rawMedia = mediaData as GiftMedia[]
+            const paths = rawMedia.map((m) => m.storage_path)
+            const urlMap = await getBatchSignedMediaUrls(paths)
+
+            const resolvedMedia: GiftMediaItem[] = rawMedia.map((m) => ({
+              ...m,
+              signedUrl: urlMap[m.storage_path] || undefined,
+            }))
+
+            setMediaItems(resolvedMedia)
+          }
         }
       } catch (err) {
         console.error('[RecipientGiftPage] Error loading gift:', err)
@@ -112,7 +141,7 @@ export default function RecipientGiftPage() {
     }
 
     loadRecipientGift()
-  }, [giftId])
+  }, [giftId, publicSlug])
 
   // Open Gift interaction
   const handleOpenGift = () => {
