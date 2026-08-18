@@ -70,8 +70,7 @@ const SECTION_METADATA: Record<
     title: 'Video Message',
     subtitle: 'Personal recorded clip',
     icon: Video,
-    available: false,
-    badge: 'Coming soon',
+    available: true,
   },
   voice: {
     title: 'Voice Note',

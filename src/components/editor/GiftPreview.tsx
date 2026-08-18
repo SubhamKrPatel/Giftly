@@ -1,4 +1,4 @@
-import { Heart, MessageSquareHeart, Image as ImageIcon } from 'lucide-react'
+import { Heart, MessageSquareHeart, Image as ImageIcon, Video as VideoIcon } from 'lucide-react'
 import type {
   GiftWithDetails,
   GiftSection,
@@ -13,9 +13,15 @@ interface GiftPreviewProps {
   sections: GiftSection[]
   activeSectionType?: string
   mediaItems?: GiftMediaItem[]
+  videoItems?: GiftMediaItem[]
 }
 
-export default function GiftPreview({ gift, sections, mediaItems = [] }: GiftPreviewProps) {
+export default function GiftPreview({
+  gift,
+  sections,
+  mediaItems = [],
+  videoItems = [],
+}: GiftPreviewProps) {
   const theme = gift.theme_config || {
     primaryColor: '#f43f5e',
     secondaryColor: '#fda4af',
@@ -250,6 +256,61 @@ export default function GiftPreview({ gift, sections, mediaItems = [] }: GiftPre
                       <div className="py-6 text-center border border-dashed border-warm-200 rounded-2xl p-4 text-neutral-400 text-xs">
                         <ImageIcon className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
                         <span>Photos added in the editor will appear here</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+
+              if (section.section_type === 'video') {
+                return (
+                  <div
+                    key={section.id}
+                    className="p-5 rounded-3xl bg-white shadow-xs border border-warm-200/80 transition-all duration-300 animate-fade-in space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <VideoIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <h3 className="font-serif text-base font-semibold text-neutral-800">
+                          Video Message
+                        </h3>
+                      </div>
+
+                      {videoItems.length > 0 && (
+                        <span className="text-[10px] font-medium text-neutral-400">
+                          {videoItems.length} {videoItems.length === 1 ? 'video' : 'videos'}
+                        </span>
+                      )}
+                    </div>
+
+                    {videoItems.length > 0 ? (
+                      <div className="space-y-3">
+                        {videoItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className="aspect-video rounded-2xl overflow-hidden bg-neutral-950 shadow-xs"
+                          >
+                            {item.signedUrl && (
+                              <video
+                                src={item.signedUrl}
+                                controls
+                                preload="metadata"
+                                playsInline
+                                className="w-full h-full object-contain"
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-6 text-center border border-dashed border-warm-200 rounded-2xl p-4 text-neutral-400 text-xs">
+                        <VideoIcon className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
+                        <span>Videos added in the editor will appear here</span>
                       </div>
                     )}
                   </div>

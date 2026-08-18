@@ -42,8 +42,14 @@ export const DEFAULT_INITIAL_SECTIONS = [
     is_visible: true,
   },
   {
-    section_type: 'final_message',
+    section_type: 'video',
     position: 3,
+    content: {},
+    is_visible: true,
+  },
+  {
+    section_type: 'final_message',
+    position: 4,
     content: {
       heading: 'With Love',
       body: '',
@@ -115,7 +121,7 @@ export function useGiftEditor(giftId?: string | null) {
 
       let loadedSections = (sectionData as GiftSection[]) || []
 
-      // 3. Fallback: If no sections exist (e.g. legacy gift), create default 4 sections
+      // 3. Fallback: If no sections exist (e.g. legacy gift), create default sections
       if (loadedSections.length === 0) {
         const sectionsToInsert = DEFAULT_INITIAL_SECTIONS.map((s) => ({
           gift_id: giftId,
@@ -133,6 +139,24 @@ export function useGiftEditor(giftId?: string | null) {
 
         if (!initError && newSections) {
           loadedSections = newSections as GiftSection[]
+        }
+      } else if (!loadedSections.some((s) => s.section_type === 'video')) {
+        // If existing gift lacks video section, insert video section seamlessly
+        const maxPos = loadedSections.reduce((max, s) => Math.max(max, s.position), 0)
+        const { data: newVideoSec } = await supabase
+          .from('gift_sections')
+          .insert({
+            gift_id: giftId,
+            section_type: 'video',
+            position: maxPos + 1,
+            content: {},
+            is_visible: true,
+          })
+          .select()
+          .single()
+
+        if (newVideoSec) {
+          loadedSections.push(newVideoSec as GiftSection)
         }
       }
 

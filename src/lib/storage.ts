@@ -1,9 +1,16 @@
 import { supabase } from '@/lib/supabase'
 
 export const MEDIA_BUCKET = 'gift-media'
+
+// Image specifications
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-export const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+export const MAX_IMAGE_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 export const MAX_IMAGES_PER_GIFT = 20
+
+// Video specifications (Part 4C)
+export const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm']
+export const MAX_VIDEO_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+export const MAX_VIDEOS_PER_GIFT = 5
 
 export interface FileValidationResult {
   valid: boolean
@@ -21,15 +28,15 @@ export function validateImageFile(file: File): FileValidationResult {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
     return {
       valid: false,
-      error: `Invalid file format (${file.type || 'unknown'}). Please upload JPEG, PNG, or WebP images.`,
+      error: `Invalid image format (${file.type || 'unknown'}). Please upload JPEG, PNG, or WebP images.`,
     }
   }
 
-  if (file.size > MAX_FILE_SIZE) {
+  if (file.size > MAX_IMAGE_FILE_SIZE) {
     const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
     return {
       valid: false,
-      error: `File is too large (${sizeMB} MB). Maximum allowed size is 10 MB per image.`,
+      error: `Image is too large (${sizeMB} MB). Maximum allowed size is 10 MB per image.`,
     }
   }
 
@@ -37,7 +44,33 @@ export function validateImageFile(file: File): FileValidationResult {
 }
 
 /**
- * Generate standard storage path for gift media:
+ * Validate video file format and size (Part 4C)
+ */
+export function validateVideoFile(file: File): FileValidationResult {
+  if (!file) {
+    return { valid: false, error: 'No file provided.' }
+  }
+
+  if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+    return {
+      valid: false,
+      error: `Invalid video format (${file.type || 'unknown'}). Please upload MP4 or WebM video files.`,
+    }
+  }
+
+  if (file.size > MAX_VIDEO_FILE_SIZE) {
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+    return {
+      valid: false,
+      error: `Video is too large (${sizeMB} MB). Maximum allowed size is 50 MB per video.`,
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * Generate standard storage path for gift photos:
  * gifts/{userId}/{giftId}/images/{mediaId}.{ext}
  */
 export function generateMediaStoragePath(
@@ -49,6 +82,21 @@ export function generateMediaStoragePath(
   const parts = fileName.split('.')
   const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : 'jpg'
   return `gifts/${userId}/${giftId}/images/${mediaId}.${ext}`
+}
+
+/**
+ * Generate standard storage path for gift videos (Part 4C):
+ * gifts/{userId}/{giftId}/videos/{mediaId}.{ext}
+ */
+export function generateVideoStoragePath(
+  userId: string,
+  giftId: string,
+  mediaId: string,
+  fileName: string
+): string {
+  const parts = fileName.split('.')
+  const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : 'mp4'
+  return `gifts/${userId}/${giftId}/videos/${mediaId}.${ext}`
 }
 
 /**

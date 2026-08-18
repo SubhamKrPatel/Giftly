@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useGiftEditor } from '@/lib/hooks/useGiftEditor'
 import { useGiftMedia } from '@/lib/hooks/useGiftMedia'
+import { useGiftVideos } from '@/lib/hooks/useGiftVideos'
 import type {
   CoverSectionContent,
   MessageSectionContent,
@@ -22,6 +23,7 @@ import EditorSectionList from '@/components/editor/EditorSectionList'
 import CoverEditor from '@/components/editor/CoverEditor'
 import MessageEditor from '@/components/editor/MessageEditor'
 import GalleryEditor from '@/components/editor/GalleryEditor'
+import VideoEditor from '@/components/editor/VideoEditor'
 import FinalMessageEditor from '@/components/editor/FinalMessageEditor'
 import ThemePicker from '@/components/editor/ThemePicker'
 import GiftPreview from '@/components/editor/GiftPreview'
@@ -50,19 +52,32 @@ export default function GiftEditorPage() {
   const coverSection = sections.find((s) => s.section_type === 'cover')
   const messageSection = sections.find((s) => s.section_type === 'message')
   const gallerySection = sections.find((s) => s.section_type === 'gallery')
+  const videoSection = sections.find((s) => s.section_type === 'video')
   const finalMessageSection = sections.find((s) => s.section_type === 'final_message')
 
   // Media hook for gallery photos
   const {
     mediaItems,
     loading: loadingMedia,
-    uploading,
-    uploadProgress,
-    error: mediaError,
-    uploadFiles,
-    reorderMedia,
-    deleteMedia,
+    uploading: uploadingPhotos,
+    uploadProgress: photoUploadProgress,
+    error: photoError,
+    uploadFiles: uploadPhotos,
+    reorderMedia: reorderPhotos,
+    deleteMedia: deletePhoto,
   } = useGiftMedia(giftId, gallerySection?.id)
+
+  // Video hook for video messages (Part 4C)
+  const {
+    videoItems,
+    loading: loadingVideos,
+    uploading: uploadingVideos,
+    uploadProgress: videoUploadProgress,
+    error: videoError,
+    uploadVideoFiles,
+    reorderVideos,
+    deleteVideo,
+  } = useGiftVideos(giftId, videoSection?.id)
 
   if (loadingGift) {
     return (
@@ -252,16 +267,30 @@ export default function GiftEditorPage() {
                 <GalleryEditor
                   mediaItems={mediaItems}
                   loading={loadingMedia}
-                  uploading={uploading}
-                  uploadProgress={uploadProgress}
-                  error={mediaError}
-                  onUpload={uploadFiles}
-                  onReorder={reorderMedia}
-                  onDelete={deleteMedia}
+                  uploading={uploadingPhotos}
+                  uploadProgress={photoUploadProgress}
+                  error={photoError}
+                  onUpload={uploadPhotos}
+                  onReorder={reorderPhotos}
+                  onDelete={deletePhoto}
                 />
               )}
 
-              {/* 6. Final Message Section Editor */}
+              {/* 6. Video Message Editor (Part 4C) */}
+              {selectedSectionType === 'video' && (
+                <VideoEditor
+                  videoItems={videoItems}
+                  loading={loadingVideos}
+                  uploading={uploadingVideos}
+                  uploadProgress={videoUploadProgress}
+                  error={videoError}
+                  onUpload={uploadVideoFiles}
+                  onReorder={reorderVideos}
+                  onDelete={deleteVideo}
+                />
+              )}
+
+              {/* 7. Final Message Section Editor */}
               {selectedSectionType === 'final_message' && finalMessageSection && (
                 <FinalMessageEditor
                   content={finalMessageSection.content as FinalMessageSectionContent}
@@ -279,6 +308,7 @@ export default function GiftEditorPage() {
               sections={sections}
               activeSectionType={selectedSectionType}
               mediaItems={mediaItems}
+              videoItems={videoItems}
             />
           </aside>
         </div>
@@ -292,6 +322,7 @@ export default function GiftEditorPage() {
                 sections={sections}
                 activeSectionType={selectedSectionType}
                 mediaItems={mediaItems}
+                videoItems={videoItems}
               />
             </div>
           ) : (
@@ -388,12 +419,25 @@ export default function GiftEditorPage() {
                   <GalleryEditor
                     mediaItems={mediaItems}
                     loading={loadingMedia}
-                    uploading={uploading}
-                    uploadProgress={uploadProgress}
-                    error={mediaError}
-                    onUpload={uploadFiles}
-                    onReorder={reorderMedia}
-                    onDelete={deleteMedia}
+                    uploading={uploadingPhotos}
+                    uploadProgress={photoUploadProgress}
+                    error={photoError}
+                    onUpload={uploadPhotos}
+                    onReorder={reorderPhotos}
+                    onDelete={deletePhoto}
+                  />
+                )}
+
+                {selectedSectionType === 'video' && (
+                  <VideoEditor
+                    videoItems={videoItems}
+                    loading={loadingVideos}
+                    uploading={uploadingVideos}
+                    uploadProgress={videoUploadProgress}
+                    error={videoError}
+                    onUpload={uploadVideoFiles}
+                    onReorder={reorderVideos}
+                    onDelete={deleteVideo}
                   />
                 )}
 
