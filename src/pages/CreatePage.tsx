@@ -7,17 +7,20 @@ import { brand } from '@/config/brand'
 import type { Occasion, Template } from '@/lib/database.types'
 import { useOccasions } from '@/lib/hooks/useOccasions'
 import { useTemplates } from '@/lib/hooks/useTemplates'
-import StepHeader from '@/components/create/StepHeader'
+import StepHeader, { type CreationStep } from '@/components/create/StepHeader'
 import OccasionPicker from '@/components/create/OccasionPicker'
+import RelationshipPicker from '@/components/create/RelationshipPicker'
 import TemplatePicker from '@/components/create/TemplatePicker'
 import GiftDetailsForm from '@/components/create/GiftDetailsForm'
+import { getRecommendedTemplateSlug } from '@/components/create/recommendations'
 
 export default function CreatePage() {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
 
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<CreationStep>(1)
   const [selectedOccasion, setSelectedOccasion] = useState<Occasion | null>(null)
+  const [selectedRelationship, setSelectedRelationship] = useState<string | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
 
   const [recipientName, setRecipientName] = useState('')
@@ -48,19 +51,35 @@ export default function CreatePage() {
     refetch: refetchTemplates,
   } = useTemplates(selectedOccasion?.id)
 
-  // Auto-select first template when templates load if none selected
+  // Select recommended template (or first template) when templates load if none selected
   useEffect(() => {
     if (templates.length > 0 && (!selectedTemplate || selectedTemplate.occasion_id !== selectedOccasion?.id)) {
-      setSelectedTemplate(templates[0])
+      const recSlug = getRecommendedTemplateSlug(selectedOccasion?.slug, selectedRelationship)
+      const recTemplate = templates.find((t) => t.slug === recSlug)
+      setSelectedTemplate(recTemplate || templates[0])
     }
-  }, [templates, selectedTemplate, selectedOccasion])
+  }, [templates, selectedTemplate, selectedOccasion, selectedRelationship])
 
-  // Occasion selection handler
+  // Occasion selection handler -> immediately moves to Step 2 (Relationship)
   function handleSelectOccasion(occasion: Occasion) {
     if (selectedOccasion?.id !== occasion.id) {
       setSelectedOccasion(occasion)
+      setSelectedRelationship(null)
       setSelectedTemplate(null)
     }
+    setStep(2)
+  }
+
+  // Relationship selection handler -> immediately moves to Step 3 (Template)
+  function handleSelectRelationship(relationshipId: string) {
+    setSelectedRelationship(relationshipId)
+    setStep(3)
+  }
+
+  // Template selection handler -> immediately moves to Step 4 (Details)
+  function handleSelectTemplate(template: Template) {
+    setSelectedTemplate(template)
+    setStep(4)
   }
 
   // Final gift submission handler
@@ -219,12 +238,14 @@ export default function CreatePage() {
       {/* Main wizard content */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Step Progress Indicator */}
-        <div className="mb-10 sm:mb-12">
+        <div className="mb-8 sm:mb-12">
           <StepHeader
             currentStep={step}
             onStepClick={(targetStep) => {
               if (targetStep === 1) setStep(1)
               else if (targetStep === 2 && selectedOccasion) setStep(2)
+              else if (targetStep === 3 && selectedOccasion && selectedRelationship) setStep(3)
+              else if (targetStep === 4 && selectedOccasion && selectedRelationship && selectedTemplate) setStep(4)
             }}
           />
         </div>
@@ -235,33 +256,43 @@ export default function CreatePage() {
             occasions={occasions}
             selectedOccasion={selectedOccasion}
             onSelect={handleSelectOccasion}
-            onContinue={() => setStep(2)}
             loading={loadingOccasions}
             error={occasionsError}
             onRetry={refetchOccasions}
           />
         )}
 
-        {/* Step 2: Select Template */}
+        {/* Step 2: Choose Relationship */}
         {step === 2 && (
+          <RelationshipPicker
+            occasion={selectedOccasion}
+            selectedRelationship={selectedRelationship}
+            onSelect={handleSelectRelationship}
+            onBack={() => setStep(1)}
+          />
+        )}
+
+        {/* Step 3: Select Template */}
+        {step === 3 && (
           <TemplatePicker
             templates={templates}
             selectedTemplate={selectedTemplate}
             occasion={selectedOccasion}
-            onSelect={(tmpl) => setSelectedTemplate(tmpl)}
-            onContinue={() => setStep(3)}
-            onBack={() => setStep(1)}
+            selectedRelationship={selectedRelationship}
+            onSelect={handleSelectTemplate}
+            onBack={() => setStep(2)}
             loading={loadingTemplates}
             error={templatesError}
             onRetry={refetchTemplates}
           />
         )}
 
-        {/* Step 3: Gift Details */}
-        {step === 3 && (
+        {/* Step 4: Gift Details */}
+        {step === 4 && (
           <GiftDetailsForm
             occasion={selectedOccasion}
             template={selectedTemplate}
+            relationship={selectedRelationship}
             recipientName={recipientName}
             senderName={senderName}
             title={title}
@@ -269,7 +300,7 @@ export default function CreatePage() {
             onSenderNameChange={setSenderName}
             onTitleChange={setTitle}
             onSubmit={handleCreateGift}
-            onBack={() => setStep(2)}
+            onBack={() => setStep(3)}
             submitting={submitting}
             error={createError}
           />

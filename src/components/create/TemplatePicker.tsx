@@ -1,14 +1,17 @@
-import { Check, ArrowRight, ArrowLeft, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
+import { Check, ArrowLeft, Loader2, AlertCircle, RefreshCw, Star, Sparkles, Eye } from 'lucide-react'
 import type { Template, Occasion } from '@/lib/database.types'
 import { cn } from '@/lib/utils'
 import Button from '@/components/ui/Button'
+import { getRecommendedTemplateSlug } from './recommendations'
+import TemplatePreviewModal from './TemplatePreviewModal'
 
 interface TemplatePickerProps {
   templates: Template[]
   selectedTemplate: Template | null
   occasion: Occasion | null
+  selectedRelationship: string | null
   onSelect: (template: Template) => void
-  onContinue: () => void
   onBack: () => void
   loading?: boolean
   error?: string | null
@@ -19,18 +22,36 @@ export default function TemplatePicker({
   templates,
   selectedTemplate,
   occasion,
+  selectedRelationship,
   onSelect,
-  onContinue,
   onBack,
   loading = false,
   error = null,
   onRetry,
 }: TemplatePickerProps) {
+  const [animatingId, setAnimatingId] = useState<string | null>(null)
+  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null)
+  const recommendedSlug = getRecommendedTemplateSlug(occasion?.slug, selectedRelationship)
+
+  const handleTemplateSelect = (template: Template) => {
+    setAnimatingId(template.id)
+    setTimeout(() => {
+      onSelect(template)
+    }, 150)
+  }
+
+  const handleOpenPreview = (e: React.MouseEvent, template: Template) => {
+    e.stopPropagation()
+    setPreviewTemplate(template)
+  }
+
   if (loading) {
     return (
       <div className="py-20 flex flex-col items-center justify-center text-center">
-        <Loader2 className="w-8 h-8 text-rose-500 animate-spin mb-3" />
-        <p className="text-sm text-neutral-500">Loading templates for {occasion?.name || 'occasion'}…</p>
+        <Loader2 className="w-9 h-9 text-rose-500 animate-spin mb-3" />
+        <p className="text-sm font-medium text-neutral-500">
+          Loading templates for {occasion?.name || 'occasion'}…
+        </p>
       </div>
     )
   }
@@ -48,7 +69,7 @@ export default function TemplatePicker({
         <div className="flex items-center justify-center gap-3">
           <Button variant="outline" size="sm" onClick={onBack}>
             <ArrowLeft className="w-4 h-4" />
-            Back to Occasions
+            Back to Relationship
           </Button>
           {onRetry && (
             <button
@@ -68,9 +89,15 @@ export default function TemplatePicker({
     <div className="space-y-8 animate-fade-in-up">
       {/* Header text */}
       <div className="text-center max-w-lg mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700 mb-3">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700 mb-3 shadow-xs">
           <span>{occasion?.icon}</span>
           <span>{occasion?.name}</span>
+          {selectedRelationship && (
+            <>
+              <span className="text-rose-300">•</span>
+              <span className="capitalize">{selectedRelationship.replace('_', ' ')}</span>
+            </>
+          )}
         </div>
         <h2 className="font-serif text-2xl sm:text-3xl font-semibold text-neutral-800 tracking-tight">
           Choose your visual style
@@ -82,12 +109,13 @@ export default function TemplatePicker({
 
       {/* Template Grid */}
       <div
-        className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto"
+        className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl mx-auto"
         role="radiogroup"
         aria-label="Choose a template"
       >
         {templates.map((template) => {
-          const isSelected = selectedTemplate?.id === template.id
+          const isSelected = selectedTemplate?.id === template.id || animatingId === template.id
+          const isRecommended = Boolean(recommendedSlug && template.slug === recommendedSlug)
           const primaryColor = template.theme_config.primaryColor || '#f43f5e'
           const secondaryColor = template.theme_config.secondaryColor || '#fda4af'
           const tag = template.theme_config.tag
@@ -98,83 +126,151 @@ export default function TemplatePicker({
               role="radio"
               aria-checked={isSelected}
               tabIndex={0}
-              onClick={() => onSelect(template)}
+              onClick={() => handleTemplateSelect(template)}
               onKeyDown={(e) => {
                 if (e.key === ' ' || e.key === 'Enter') {
                   e.preventDefault()
-                  onSelect(template)
+                  handleTemplateSelect(template)
                 }
               }}
               className={cn(
-                'group relative text-left rounded-3xl border-2 transition-all duration-200 cursor-pointer bg-white overflow-hidden select-none',
+                'group relative flex flex-col justify-between text-left rounded-3xl border-2 transition-all duration-200 cursor-pointer bg-white overflow-hidden select-none',
+                'focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2',
                 isSelected
-                  ? 'border-rose-500 shadow-glow ring-2 ring-rose-200'
-                  : 'border-warm-200 hover:border-rose-300 hover:shadow-card-hover'
+                  ? 'border-rose-500 shadow-glow ring-2 ring-rose-200 scale-[1.01]'
+                  : isRecommended
+                  ? 'border-amber-300/90 hover:border-amber-400 hover:shadow-card-hover hover:-translate-y-0.5'
+                  : 'border-warm-200 hover:border-rose-300 hover:shadow-card-hover hover:-translate-y-0.5'
               )}
             >
-              {/* Visual Color-Block Card Preview */}
-              <div
-                className="h-44 p-4 relative flex flex-col justify-between overflow-hidden transition-transform duration-300"
-                style={{
-                  background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-                }}
-              >
-                {/* Decorative background overlay elements */}
-                <div className="absolute inset-0 bg-black/5 backdrop-blur-[0.5px]" />
-                <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none" />
-                <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-black/10 blur-xl pointer-events-none" />
+              <div>
+                {/* Visual Color-Block Card Preview */}
+                <div
+                  className="h-44 sm:h-48 p-4 relative flex flex-col justify-between overflow-hidden transition-transform duration-300"
+                  style={{
+                    background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                  }}
+                >
+                  {/* Decorative background overlay elements */}
+                  <div className="absolute inset-0 bg-black/5 backdrop-blur-[0.5px]" />
+                  <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full bg-white/10 blur-xl pointer-events-none" />
+                  <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full bg-black/10 blur-xl pointer-events-none" />
 
-                {/* Top preview row */}
-                <div className="relative z-10 flex items-center justify-between">
-                  <span className="text-xl drop-shadow-sm">{occasion?.icon || '🎁'}</span>
-                  {tag && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide bg-white/90 text-neutral-800 shadow-sm backdrop-blur-sm">
-                      {tag}
-                    </span>
+                  {/* Top preview row */}
+                  <div className="relative z-10 flex items-center justify-between gap-2">
+                    <span className="text-2xl drop-shadow-sm">{occasion?.icon || '🎁'}</span>
+                    
+                    <div className="flex items-center gap-1.5">
+                      {isRecommended && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide bg-amber-400 text-amber-950 shadow-md animate-pulse-soft">
+                          <Star className="w-3 h-3 fill-amber-950 stroke-none" />
+                          <span>Recommended</span>
+                        </span>
+                      )}
+                      {tag && !isRecommended && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide bg-white/90 text-neutral-800 shadow-sm backdrop-blur-sm">
+                          {tag}
+                        </span>
+                      )}
+
+                      {/* Quick Preview Badge Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenPreview(e, template)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-neutral-900/70 hover:bg-neutral-900 text-white backdrop-blur-md shadow-xs border border-white/20 transition-colors"
+                        aria-label={`Preview ${template.name}`}
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>Preview</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card Mockup preview box */}
+                  <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-2xl p-3.5 shadow-sm border border-white/40">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: primaryColor }}
+                        />
+                        <div className="h-2 w-24 bg-neutral-300 rounded-full" />
+                      </div>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500 opacity-80" />
+                    </div>
+                    <div className="h-1.5 w-16 bg-neutral-200 rounded-full" />
+                  </div>
+
+                  {/* Selected Checkmark overlay */}
+                  {isSelected && (
+                    <div className="absolute top-3 right-3 z-20 w-7 h-7 bg-white text-rose-600 rounded-full flex items-center justify-center shadow-md animate-scale-in">
+                      <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
                   )}
                 </div>
 
-                {/* Card Mockup content preview */}
-                <div className="relative z-10 bg-white/90 backdrop-blur-md rounded-xl p-3 shadow-sm border border-white/40">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: primaryColor }}
-                    />
-                    <div className="h-2 w-24 bg-neutral-300 rounded-full" />
+                {/* Card Meta Content */}
+                <div className="p-5 sm:p-6">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <h3 className="font-serif text-lg sm:text-xl font-semibold text-neutral-800 group-hover:text-rose-600 transition-colors">
+                      {template.name}
+                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className="w-3.5 h-3.5 rounded-full border border-white shadow-sm"
+                        style={{ backgroundColor: primaryColor }}
+                      />
+                      <div
+                        className="w-3.5 h-3.5 rounded-full border border-white shadow-sm"
+                        style={{ backgroundColor: secondaryColor }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-1.5 w-16 bg-neutral-200 rounded-full" />
-                </div>
 
-                {/* Selected Checkmark overlay */}
-                {isSelected && (
-                  <div className="absolute top-3 right-3 z-20 w-7 h-7 bg-white text-rose-600 rounded-full flex items-center justify-center shadow-md animate-scale-in">
-                    <Check className="w-4 h-4 stroke-[3]" />
-                  </div>
-                )}
+                  <p className="text-xs sm:text-sm text-neutral-500 line-clamp-2 leading-relaxed">
+                    {template.description}
+                  </p>
+                </div>
               </div>
 
-              {/* Card Meta Content */}
-              <div className="p-5">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <h3 className="font-serif text-lg font-semibold text-neutral-800 group-hover:text-rose-600 transition-colors">
-                    {template.name}
-                  </h3>
-                  <div className="flex items-center gap-1">
-                    <div
-                      className="w-3.5 h-3.5 rounded-full border border-white shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    />
-                    <div
-                      className="w-3.5 h-3.5 rounded-full border border-white shadow-sm"
-                      style={{ backgroundColor: secondaryColor }}
-                    />
-                  </div>
-                </div>
+              {/* Card Action CTAs: Secondary Preview + Primary Use Template */}
+              <div className="px-5 pb-5 sm:px-6 sm:pb-6 pt-0 flex items-center gap-2.5">
+                {/* Secondary Preview Button */}
+                <button
+                  type="button"
+                  onClick={(e) => handleOpenPreview(e, template)}
+                  className="py-2.5 px-3.5 min-h-[44px] rounded-xl text-xs sm:text-sm font-semibold border border-warm-300 bg-white text-neutral-700 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50/50 transition-all duration-200 flex items-center justify-center gap-1.5 active:scale-95 shadow-2xs"
+                  aria-label={`Preview ${template.name} template`}
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>Preview</span>
+                </button>
 
-                <p className="text-xs sm:text-sm text-neutral-500 line-clamp-2 leading-relaxed">
-                  {template.description}
-                </p>
+                {/* Primary Action Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleTemplateSelect(template)
+                  }}
+                  className={cn(
+                    'flex-1 py-2.5 px-4 min-h-[44px] rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-sm',
+                    isSelected
+                      ? 'bg-rose-500 text-white'
+                      : isRecommended
+                      ? 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-rose-500 hover:text-white hover:border-rose-500'
+                      : 'bg-warm-100 text-neutral-800 hover:bg-rose-500 hover:text-white'
+                  )}
+                >
+                  {isSelected ? (
+                    <>
+                      <Check className="w-4 h-4 stroke-[2.5]" />
+                      <span>Selected</span>
+                    </>
+                  ) : (
+                    <span>Use This Template</span>
+                  )}
+                </button>
               </div>
             </div>
           )
@@ -187,22 +283,25 @@ export default function TemplatePicker({
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between pt-6 border-t border-warm-200">
+      {/* Back button */}
+      <div className="flex items-center justify-between pt-6 border-t border-warm-200 max-w-4xl mx-auto">
         <Button variant="outline" size="md" onClick={onBack}>
           <ArrowLeft className="w-4 h-4" />
-          <span>Change Occasion</span>
-        </Button>
-
-        <Button
-          size="lg"
-          disabled={!selectedTemplate}
-          onClick={onContinue}
-        >
-          <span>Continue to Details</span>
-          <ArrowRight className="w-4 h-4" />
+          <span>Back to Relationship</span>
         </Button>
       </div>
+
+      {/* Reusable Template Preview Modal */}
+      <TemplatePreviewModal
+        isOpen={previewTemplate !== null}
+        template={previewTemplate}
+        occasion={occasion}
+        onClose={() => setPreviewTemplate(null)}
+        onUseTemplate={(selectedTpl) => {
+          handleTemplateSelect(selectedTpl)
+        }}
+      />
     </div>
   )
 }
+
