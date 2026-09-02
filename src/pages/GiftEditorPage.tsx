@@ -212,6 +212,10 @@ export default function GiftEditorPage() {
               onSectionSelect={setSelectedSectionType}
               onReorder={reorderSection}
               onToggleVisibility={toggleVisibility}
+              mediaItems={mediaItems}
+              videoItems={videoItems}
+              voiceItem={voiceItem}
+              musicItem={musicItem}
             />
 
             {/* AI Assistant Quick Story Launcher */}
@@ -447,6 +451,10 @@ export default function GiftEditorPage() {
                 onSectionSelect={setSelectedSectionType}
                 onReorder={reorderSection}
                 onToggleVisibility={toggleVisibility}
+                mediaItems={mediaItems}
+                videoItems={videoItems}
+                voiceItem={voiceItem}
+                musicItem={musicItem}
               />
 
               {/* Mobile AI Quick Trigger */}
