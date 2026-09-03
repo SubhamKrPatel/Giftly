@@ -19,6 +19,12 @@ import { resolveRecipientPages, type RecipientPage } from '@/lib/recipientPages'
 import { getOccasionVisualTheme } from '@/lib/occasionThemes'
 import RecipientBackground from '@/components/recipient/visuals/RecipientBackground'
 import RecipientMusicController from '@/components/recipient/RecipientMusicController'
+import BirthdayOpeningMoment from '@/components/recipient/pages/BirthdayOpeningMoment'
+import ValentinesOpeningMoment from '@/components/recipient/pages/ValentinesOpeningMoment'
+import AnniversaryOpeningMoment from '@/components/recipient/pages/AnniversaryOpeningMoment'
+import FriendshipOpeningMoment from '@/components/recipient/pages/FriendshipOpeningMoment'
+import WeddingOpeningMoment from '@/components/recipient/pages/WeddingOpeningMoment'
+import FestivalOpeningMoment from '@/components/recipient/pages/FestivalOpeningMoment'
 
 interface GiftPreviewProps {
   gift: GiftWithDetails
@@ -169,42 +175,105 @@ export default function GiftPreview({
               <div className="w-full animate-fade-in space-y-3">
                 {/* 1. Opening Page */}
                 {currentPage.type === 'opening' && (
-                  <div className="text-center space-y-3 py-4">
-                    <div
-                      className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-white shadow-sm"
-                      style={{
-                        background: `linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%)`,
-                      }}
-                    >
-                      <GiftIcon className="w-7 h-7" />
-                    </div>
-                    <div>
-                      <h2 className="font-serif text-xl font-bold tracking-tight text-neutral-900 leading-tight">
-                        {currentPage.content.headline || `A Special Surprise for ${gift.recipient_name}`}
-                      </h2>
-                      {currentPage.content.subheadline && (
-                        <p className="text-xs text-neutral-600 mt-1">
-                          {currentPage.content.subheadline}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-neutral-500 pt-1">
-                      For <strong className="text-neutral-800">{gift.recipient_name}</strong>
-                      {gift.sender_name && <span> • From <strong>{gift.sender_name}</strong></span>}
-                    </div>
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))}
-                        className="px-5 py-2 rounded-full text-xs font-semibold text-white shadow-sm"
+                  gift.occasion?.slug === 'birthday' ||
+                  gift.occasion?.name?.toLowerCase().includes('birthday') ||
+                  gift.template?.slug?.includes('birthday') ? (
+                    <BirthdayOpeningMoment
+                      page={currentPage}
+                      gift={gift}
+                      theme={theme}
+                      onContinue={() => setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))}
+                      isCompact={true}
+                    />
+                  ) : gift.occasion?.slug === 'valentines' ||
+                    gift.occasion?.slug === 'valentine' ||
+                    gift.occasion?.name?.toLowerCase().includes('valentine') ||
+                    gift.template?.slug?.includes('valentine') ? (
+                    <ValentinesOpeningMoment
+                      page={currentPage}
+                      gift={gift}
+                      theme={theme}
+                      onContinue={() => setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))}
+                      isCompact={true}
+                    />
+                  ) : gift.occasion?.slug === 'anniversary' ||
+                    gift.occasion?.name?.toLowerCase().includes('anniversary') ||
+                    gift.template?.slug?.includes('anniversary') ? (
+                    <AnniversaryOpeningMoment
+                      page={currentPage}
+                      gift={gift}
+                      theme={theme}
+                      onContinue={() => setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))}
+                      isCompact={true}
+                    />
+                  ) : gift.occasion?.slug === 'friendship' ||
+                    gift.occasion?.name?.toLowerCase().includes('friendship') ||
+                    gift.template?.slug?.includes('friendship') ? (
+                    <FriendshipOpeningMoment
+                      page={currentPage}
+                      gift={gift}
+                      theme={theme}
+                      onContinue={() => setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))}
+                      isCompact={true}
+                    />
+                  ) : gift.occasion?.slug === 'wedding' ||
+                    gift.occasion?.name?.toLowerCase().includes('wedding') ||
+                    gift.template?.slug?.includes('wedding') ? (
+                    <WeddingOpeningMoment
+                      page={currentPage}
+                      gift={gift}
+                      theme={theme}
+                      onContinue={() => setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))}
+                      isCompact={true}
+                    />
+                  ) : gift.occasion?.slug === 'festival' ||
+                    gift.occasion?.name?.toLowerCase().includes('festival') ||
+                    gift.template?.slug?.includes('festival') ? (
+                    <FestivalOpeningMoment
+                      page={currentPage}
+                      gift={gift}
+                      theme={theme}
+                      onContinue={() => setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))}
+                      isCompact={true}
+                    />
+                  ) : (
+                    <div className="text-center space-y-3 py-4">
+                      <div
+                        className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-white shadow-sm"
                         style={{
                           background: `linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%)`,
                         }}
                       >
-                        Open Gift →
-                      </button>
+                        <GiftIcon className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <h2 className="font-serif text-xl font-bold tracking-tight text-neutral-900 leading-tight">
+                          {currentPage.content.headline || `A Special Surprise for ${gift.recipient_name}`}
+                        </h2>
+                        {currentPage.content.subheadline && (
+                          <p className="text-xs text-neutral-600 mt-1">
+                            {currentPage.content.subheadline}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-neutral-500 pt-1">
+                        For <strong className="text-neutral-800">{gift.recipient_name}</strong>
+                        {gift.sender_name && <span> • From <strong>{gift.sender_name}</strong></span>}
+                      </div>
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))}
+                          className="px-5 py-2 rounded-full text-xs font-semibold text-white shadow-sm cursor-pointer"
+                          style={{
+                            background: `linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%)`,
+                          }}
+                        >
+                          Open Gift →
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )
                 )}
 
                 {/* 2. Message Page */}
