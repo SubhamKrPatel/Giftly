@@ -21,6 +21,9 @@ export interface RecipientStoryItem {
   id?: string
   title: string
   description?: string
+  date?: string
+  imageUrl?: string
+  mediaId?: string
   iconEmoji?: string
   colorTag?: string
 }
@@ -29,8 +32,11 @@ export interface RecipientPageContent {
   headline?: string
   subheadline?: string
   heading?: string
+  subtitle?: string
   body?: string
   items?: RecipientStoryItem[]
+  backgroundImageUrl?: string
+  backgroundMediaId?: string
   photos?: GiftMediaItem[]
   videos?: GiftMediaItem[]
   voice?: GiftMediaItem | null
@@ -124,8 +130,9 @@ export function resolveRecipientPages({
   const msgContent = (messageSection?.content as MessageSectionContent) || {}
   const msgHeading = msgContent.heading || 'A Message For You'
   const msgBody =
-    msgContent.body ||
-    `Dear ${recipientName},\n\nWishing you a wonderful day filled with happiness, love, and memorable moments.`
+    msgContent.body !== undefined
+      ? msgContent.body
+      : `Dear ${recipientName},\n\nWishing you a wonderful day filled with happiness, love, and memorable moments.`
 
   resolvedPages.push({
     id: messageSection?.id || 'page-message',
@@ -149,20 +156,26 @@ export function resolveRecipientPages({
     const items = (storyContent.items as RecipientStoryItem[]) || []
     const storyBody = typeof storyContent.body === 'string' ? storyContent.body : undefined
     const storyHeading = typeof storyContent.heading === 'string' ? storyContent.heading : 'Our Story'
+    const storySubtitle = typeof storyContent.subtitle === 'string' ? storyContent.subtitle : undefined
+    const backgroundImageUrl = typeof storyContent.backgroundImageUrl === 'string' ? storyContent.backgroundImageUrl : undefined
+    const backgroundMediaId = typeof storyContent.backgroundMediaId === 'string' ? storyContent.backgroundMediaId : undefined
 
     if (items.length > 0 || (storyBody && storyBody.trim().length > 0)) {
       resolvedPages.push({
         id: storySection.id,
         type: 'story',
         title: storyHeading,
-        subtitle: typeof storyContent.subtitle === 'string' ? storyContent.subtitle : undefined,
+        subtitle: storySubtitle,
         badge: 'Special Moments',
         sectionId: storySection.id,
         position: resolvedPages.length,
         content: {
           heading: storyHeading,
+          subtitle: storySubtitle,
           body: storyBody,
           items,
+          backgroundImageUrl,
+          backgroundMediaId,
         },
       })
     }
@@ -231,7 +244,9 @@ export function resolveRecipientPages({
   const finalContent = (finalSection?.content as FinalMessageSectionContent) || {}
   const finalHeading = finalContent.heading || 'With Love'
   const finalBody =
-    finalContent.body || 'May your days ahead be filled with endless joy, laughter, and blessings.'
+    finalContent.body !== undefined
+      ? finalContent.body
+      : 'May your days ahead be filled with endless joy, laughter, and blessings.'
 
   resolvedPages.push({
     id: finalSection?.id || 'page-closing',

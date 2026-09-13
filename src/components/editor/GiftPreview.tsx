@@ -86,6 +86,8 @@ export default function GiftPreview({
       targetIdx = pages.findIndex((p) => p.type === 'opening')
     } else if (activeSectionType === 'message') {
       targetIdx = pages.findIndex((p) => p.type === 'message')
+    } else if (activeSectionType === 'story') {
+      targetIdx = pages.findIndex((p) => p.type === 'story')
     } else if (activeSectionType === 'gallery') {
       targetIdx = pages.findIndex((p) => p.type === 'photos')
     } else if (activeSectionType === 'video') {
@@ -291,7 +293,11 @@ export default function GiftPreview({
                       </h3>
                     </div>
                     <p className="text-xs text-neutral-700 leading-relaxed whitespace-pre-line font-serif">
-                      {currentPage.content.body}
+                      {currentPage.content.body?.trim() ? (
+                        currentPage.content.body
+                      ) : (
+                        <span className="text-neutral-400 italic">Your message starts here.</span>
+                      )}
                     </p>
                     {gift.sender_name && (
                       <p className="text-[11px] font-bold text-right italic pt-1" style={{ color: primaryColor }}>
@@ -303,28 +309,60 @@ export default function GiftPreview({
 
                 {/* 3. Story Page */}
                 {currentPage.type === 'story' && (
-                  <div className="p-4 rounded-3xl bg-white/95 shadow-xs border border-warm-200/80 space-y-3">
-                    <div className="flex items-center gap-2 border-b border-warm-100 pb-2">
-                      <div
-                        className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
-                        style={{ backgroundColor: primaryColor }}
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                      </div>
-                      <h3 className="font-serif text-sm font-semibold text-neutral-800">
-                        {currentPage.content.heading || 'Our Story'}
-                      </h3>
-                    </div>
-                    {currentPage.content.items && currentPage.content.items.length > 0 && (
-                      <div className="space-y-2">
-                        {currentPage.content.items.slice(0, 3).map((item, idx) => (
-                          <div key={idx} className="p-2 rounded-xl bg-warm-50 text-xs">
-                            <span className="font-semibold text-neutral-800">{item.title}</span>
-                            {item.description && <p className="text-[11px] text-neutral-500">{item.description}</p>}
-                          </div>
-                        ))}
+                  <div className="relative rounded-3xl overflow-hidden shadow-xs border border-warm-200/80">
+                    {currentPage.content.backgroundImageUrl && (
+                      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+                        <img
+                          src={currentPage.content.backgroundImageUrl}
+                          alt=""
+                          aria-hidden="true"
+                          className="w-full h-full object-cover filter blur-[2px] opacity-25"
+                        />
+                        <div className="absolute inset-0 bg-white/85 backdrop-blur-2xs" />
                       </div>
                     )}
+                    <div className="relative z-10 p-4 space-y-3 bg-white/90 backdrop-blur-sm">
+                      <div className="flex items-center gap-2 border-b border-warm-100 pb-2">
+                        <div
+                          className="w-7 h-7 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-serif text-sm font-semibold text-neutral-800 truncate">
+                            {currentPage.content.heading || 'Our Story'}
+                          </h3>
+                          {currentPage.subtitle && (
+                            <p className="text-[10px] text-neutral-500 truncate">{currentPage.subtitle}</p>
+                          )}
+                        </div>
+                      </div>
+                      {currentPage.content.items && currentPage.content.items.length > 0 ? (
+                        <div className="space-y-2">
+                          {currentPage.content.items.slice(0, 3).map((item, idx) => (
+                            <div key={idx} className="p-2.5 rounded-xl bg-warm-50/80 border border-warm-200/60 text-xs space-y-1.5">
+                              {item.imageUrl && (
+                                <div className="w-full h-24 rounded-lg overflow-hidden bg-warm-100">
+                                  <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-semibold text-neutral-800 truncate">{item.title}</span>
+                                {item.date && (
+                                  <span className="text-[10px] text-neutral-500 flex-shrink-0">{item.date}</span>
+                                )}
+                              </div>
+                              {item.description && <p className="text-[11px] text-neutral-600 line-clamp-2">{item.description}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-4 text-center text-xs text-neutral-400">
+                          Add memories to see them in this story
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -406,7 +444,11 @@ export default function GiftPreview({
                       {currentPage.content.heading || 'With Love'}
                     </h3>
                     <p className="text-xs text-neutral-600 font-serif whitespace-pre-line leading-relaxed">
-                      &quot;{currentPage.content.body}&quot;
+                      {currentPage.content.body?.trim() ? (
+                        `"${currentPage.content.body}"`
+                      ) : (
+                        <span className="text-neutral-400 italic">Leave them with one last beautiful thought.</span>
+                      )}
                     </p>
                     {gift.sender_name && (
                       <p className="text-xs font-semibold italic pt-1" style={{ color: primaryColor }}>

@@ -146,7 +146,7 @@ export default function EditorSectionList({
         const body = typeof content.body === 'string' ? content.body.trim() : ''
         const count = items.length
         if (count > 0) {
-          return { label: `${count} ${count === 1 ? 'chapter' : 'chapters'}`, hasContent: true }
+          return { label: `${count} ${count === 1 ? 'memory' : 'memories'}`, hasContent: true }
         }
         if (body.length > 0) {
           return { label: 'Story written', hasContent: true }

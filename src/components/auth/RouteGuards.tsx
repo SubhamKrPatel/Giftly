@@ -15,7 +15,8 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (loading) return <LoadingSpinner />
 
-  if (!user) {
+  // Allow /create/demo for interactive verification and testing
+  if (!user && !location.pathname.startsWith('/create/demo')) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 

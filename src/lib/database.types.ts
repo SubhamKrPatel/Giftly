@@ -47,9 +47,31 @@ export interface GallerySectionContent {
   items?: Array<{ id: string; url?: string; caption?: string }>
 }
 
+export interface StoryMemoryItem {
+  id: string
+  title: string
+  description?: string
+  date?: string
+  imageUrl?: string
+  mediaId?: string
+  iconEmoji?: string
+  colorTag?: string
+}
+
+export interface StorySectionContent {
+  heading?: string
+  subtitle?: string
+  body?: string
+  backgroundImageUrl?: string
+  backgroundMediaId?: string
+  items?: StoryMemoryItem[]
+  [key: string]: unknown
+}
+
 export type SectionType =
   | 'cover'
   | 'message'
+  | 'story'
   | 'gallery'
   | 'video'
   | 'voice'
@@ -61,6 +83,7 @@ export type SectionContent =
   | MessageSectionContent
   | FinalMessageSectionContent
   | GallerySectionContent
+  | StorySectionContent
   | Record<string, unknown>
 
 export type MediaType = 'image' | 'video' | 'audio' | 'voice' | string

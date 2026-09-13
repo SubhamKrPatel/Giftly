@@ -35,8 +35,18 @@ export const DEFAULT_INITIAL_SECTIONS = [
     is_visible: true,
   },
   {
-    section_type: 'gallery',
+    section_type: 'story',
     position: 2,
+    content: {
+      heading: 'Our Story',
+      subtitle: 'Special moments and memories',
+      items: [],
+    },
+    is_visible: true,
+  },
+  {
+    section_type: 'gallery',
+    position: 3,
     content: {
       items: [],
     },
@@ -44,25 +54,25 @@ export const DEFAULT_INITIAL_SECTIONS = [
   },
   {
     section_type: 'video',
-    position: 3,
-    content: {},
-    is_visible: true,
-  },
-  {
-    section_type: 'voice',
     position: 4,
     content: {},
     is_visible: true,
   },
   {
-    section_type: 'music',
+    section_type: 'voice',
     position: 5,
     content: {},
     is_visible: true,
   },
   {
-    section_type: 'final_message',
+    section_type: 'music',
     position: 6,
+    content: {},
+    is_visible: true,
+  },
+  {
+    section_type: 'final_message',
+    position: 7,
     content: {
       heading: 'With Love',
       body: '',
@@ -93,7 +103,66 @@ export function useGiftEditor(giftId?: string | null) {
 
   // Fetch gift and its sections
   const fetchGiftAndSections = useCallback(async () => {
-    if (!giftId || !user) return
+    if (!giftId) return
+
+    if (giftId === 'demo') {
+      const demoGift: GiftWithDetails = {
+        id: 'demo',
+        user_id: user?.id || 'demo-user',
+        recipient_name: 'Chahat',
+        sender_name: 'Ayushi',
+        title: 'Happy Birthday Chahat! 🎂',
+        status: 'draft',
+        public_slug: 'demo',
+        occasion_id: 'birthday',
+        template_id: 'classic-birthday',
+        theme_config: DEFAULT_THEME,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        occasion: {
+          id: 'birthday',
+          slug: 'birthday',
+          name: 'Birthday',
+          description: 'Birthday gift surprise',
+          icon: '🎂',
+          sort_order: 1,
+          is_active: true,
+          created_at: new Date().toISOString(),
+        },
+        template: {
+          id: 'classic-birthday',
+          slug: 'classic-birthday',
+          name: 'Classic Birthday',
+          description: 'Classic birthday greeting template',
+          occasion_id: 'birthday',
+          thumbnail_url: null,
+          theme_config: DEFAULT_THEME,
+          is_active: true,
+          sort_order: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      }
+      setGift(demoGift)
+      setSections(
+        DEFAULT_INITIAL_SECTIONS.map((s, idx) => ({
+          id: `demo-sec-${idx}`,
+          gift_id: 'demo',
+          section_type: s.section_type,
+          position: s.position,
+          content: s.content,
+          is_visible: s.is_visible,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }))
+      )
+      setSaveStatus('saved')
+      setLoading(false)
+      isDirtyRef.current = false
+      return
+    }
+
+    if (!user) return
 
     setLoading(true)
     setNotFound(false)
@@ -154,8 +223,8 @@ export function useGiftEditor(giftId?: string | null) {
           loadedSections = newSections as GiftSection[]
         }
       } else {
-        // If existing gift lacks video, voice, or music sections, insert them smoothly
-        const missingTypes = ['video', 'voice', 'music'].filter(
+        // If existing gift lacks story, video, voice, or music sections, insert them smoothly
+        const missingTypes = ['story', 'video', 'voice', 'music'].filter(
           (t) => !loadedSections.some((s) => s.section_type === t)
         )
 
@@ -163,13 +232,18 @@ export function useGiftEditor(giftId?: string | null) {
           let maxPos = loadedSections.reduce((max, s) => Math.max(max, s.position), 0)
           for (const mType of missingTypes) {
             maxPos++
+            const initialContent =
+              mType === 'story'
+                ? { heading: 'Our Story', subtitle: 'Special moments and memories', items: [] }
+                : {}
+
             const { data: newSec } = await supabase
               .from('gift_sections')
               .insert({
                 gift_id: giftId,
                 section_type: mType,
                 position: maxPos,
-                content: {},
+                content: initialContent,
                 is_visible: true,
               })
               .select()
@@ -203,6 +277,15 @@ export function useGiftEditor(giftId?: string | null) {
     const currentSections = sectionsRef.current
 
     if (!giftId || !currentGift) return
+
+    if (giftId === 'demo') {
+      setSaveStatus('saving')
+      setTimeout(() => {
+        setSaveStatus('saved')
+        isDirtyRef.current = false
+      }, 500)
+      return
+    }
 
     setSaveStatus('saving')
     setSaveError(null)
