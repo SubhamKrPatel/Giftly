@@ -1,17 +1,30 @@
 import { Heart, Type, PenTool } from 'lucide-react'
-import type { FinalMessageSectionContent } from '@/lib/database.types'
+import type {
+  FinalMessageSectionContent,
+  SlideBackgroundConfig,
+  GiftThemeConfig,
+} from '@/lib/database.types'
+import SlideBackgroundControl, { type PhotoOption } from './SlideBackgroundControl'
 
 interface FinalMessageEditorProps {
   content: FinalMessageSectionContent
   onChange: (updates: Partial<FinalMessageSectionContent>) => void
   senderName?: string
   onOpenAI?: () => void
+  availablePhotos?: PhotoOption[]
+  occasionSlug?: string | null
+  theme?: GiftThemeConfig
+  onUploadBackgroundPhoto?: (file: File) => Promise<{ mediaId: string; url: string } | null>
 }
 
 export default function FinalMessageEditor({
   content,
   onChange,
   senderName = 'Ayushi',
+  availablePhotos = [],
+  occasionSlug,
+  theme,
+  onUploadBackgroundPhoto,
 }: FinalMessageEditorProps) {
   const heading = content?.heading ?? ''
   const body = content?.body ?? ''
@@ -106,6 +119,18 @@ export default function FinalMessageEditor({
             </span>
           </div>
         )}
+
+        {/* ── Slide Background Customization ── */}
+        <SlideBackgroundControl
+          background={content?.background}
+          onChange={(bg: SlideBackgroundConfig) => onChange({ background: bg })}
+          availablePhotos={availablePhotos}
+          occasionSlug={occasionSlug}
+          theme={theme}
+          onUploadPhoto={onUploadBackgroundPhoto}
+          title="Final Wish Slide Background"
+          defaultCollapsed={true}
+        />
       </div>
     </div>
   )

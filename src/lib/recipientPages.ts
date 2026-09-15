@@ -6,6 +6,9 @@ import type {
   MessageSectionContent,
   FinalMessageSectionContent,
   GallerySectionContent,
+  VideoSectionContent,
+  VoiceSectionContent,
+  SlideBackgroundConfig,
 } from '@/lib/database.types'
 
 export type RecipientPageType =
@@ -37,6 +40,7 @@ export interface RecipientPageContent {
   items?: RecipientStoryItem[]
   backgroundImageUrl?: string
   backgroundMediaId?: string
+  background?: SlideBackgroundConfig
   photos?: GiftMediaItem[]
   videos?: GiftMediaItem[]
   voice?: GiftMediaItem | null
@@ -53,6 +57,7 @@ export interface RecipientPage {
   badge?: string
   sectionId?: string
   position: number
+  background?: SlideBackgroundConfig
   content: RecipientPageContent
 }
 
@@ -118,10 +123,12 @@ export function resolveRecipientPages({
     badge: `${occasionIcon} ${occasionName}`,
     sectionId: coverSection?.id,
     position: 0,
+    background: coverContent.background,
     content: {
       headline,
       subheadline,
       signature: senderName,
+      background: coverContent.background,
     },
   })
 
@@ -141,10 +148,12 @@ export function resolveRecipientPages({
     badge: 'Personal Note',
     sectionId: messageSection?.id,
     position: 1,
+    background: msgContent.background,
     content: {
       heading: msgHeading,
       body: msgBody,
       signature: senderName,
+      background: msgContent.background,
     },
   })
 
@@ -159,6 +168,17 @@ export function resolveRecipientPages({
     const storySubtitle = typeof storyContent.subtitle === 'string' ? storyContent.subtitle : undefined
     const backgroundImageUrl = typeof storyContent.backgroundImageUrl === 'string' ? storyContent.backgroundImageUrl : undefined
     const backgroundMediaId = typeof storyContent.backgroundMediaId === 'string' ? storyContent.backgroundMediaId : undefined
+    const storyBackground =
+      (storyContent.background as SlideBackgroundConfig | undefined) ||
+      (backgroundImageUrl
+        ? {
+            mode: 'photo' as const,
+            mediaUrl: backgroundImageUrl,
+            mediaId: backgroundMediaId,
+            position: 'center' as const,
+            overlay: 50,
+          }
+        : undefined)
 
     if (items.length > 0 || (storyBody && storyBody.trim().length > 0)) {
       resolvedPages.push({
@@ -169,6 +189,7 @@ export function resolveRecipientPages({
         badge: 'Special Moments',
         sectionId: storySection.id,
         position: resolvedPages.length,
+        background: storyBackground,
         content: {
           heading: storyHeading,
           subtitle: storySubtitle,
@@ -176,6 +197,7 @@ export function resolveRecipientPages({
           items,
           backgroundImageUrl,
           backgroundMediaId,
+          background: storyBackground,
         },
       })
     }
@@ -186,6 +208,15 @@ export function resolveRecipientPages({
   const galleryVisible = gallerySection ? gallerySection.is_visible !== false : false
   if (galleryVisible && photos.length > 0) {
     const galleryContent = (gallerySection?.content as GallerySectionContent) || {}
+    const galleryItems = galleryContent.items || []
+    const photosWithCaptions: GiftMediaItem[] = photos.map((p) => {
+      const match = galleryItems.find((it) => it.id === p.id || it.mediaId === p.id)
+      return {
+        ...p,
+        caption: match?.caption || p.caption,
+      }
+    })
+
     resolvedPages.push({
       id: gallerySection?.id || 'page-photos',
       type: 'photos',
@@ -194,9 +225,11 @@ export function resolveRecipientPages({
       badge: 'Photo Memories',
       sectionId: gallerySection?.id,
       position: resolvedPages.length,
+      background: galleryContent.background,
       content: {
-        photos,
+        photos: photosWithCaptions,
         heading: 'Photo Memories',
+        background: galleryContent.background,
       },
     })
   }
@@ -205,17 +238,24 @@ export function resolveRecipientPages({
   const videoSection = sortedSections.find((s) => s.section_type === 'video')
   const videoVisible = videoSection ? videoSection.is_visible !== false : false
   if (videoVisible && videos.length > 0) {
+    const videoContent = (videoSection?.content as VideoSectionContent) || {}
+    const videoHeading = videoContent.heading || 'Video Message'
+    const videoSubtitle = videoContent.subtitle || 'A recorded clip just for you'
+
     resolvedPages.push({
       id: videoSection?.id || 'page-video',
       type: 'video',
-      title: 'Video Message',
-      subtitle: 'A recorded clip just for you',
+      title: videoHeading,
+      subtitle: videoSubtitle,
       badge: 'Video Message',
       sectionId: videoSection?.id,
       position: resolvedPages.length,
+      background: videoContent.background,
       content: {
         videos,
-        heading: 'Video Message',
+        heading: videoHeading,
+        subtitle: videoSubtitle,
+        background: videoContent.background,
       },
     })
   }
@@ -224,17 +264,24 @@ export function resolveRecipientPages({
   const voiceSection = sortedSections.find((s) => s.section_type === 'voice')
   const voiceVisible = voiceSection ? voiceSection.is_visible !== false : false
   if (voiceVisible && voiceItem && voiceItem.signedUrl) {
+    const voiceContent = (voiceSection?.content as VoiceSectionContent) || {}
+    const voiceHeading = voiceContent.heading || 'A Voice Note For You'
+    const voiceSubtitle = voiceContent.subtitle || 'A personal audio note'
+
     resolvedPages.push({
       id: voiceSection?.id || 'page-voice',
       type: 'voice',
-      title: 'Voice Message',
-      subtitle: 'A personal audio note',
+      title: voiceHeading,
+      subtitle: voiceSubtitle,
       badge: 'Voice Note',
       sectionId: voiceSection?.id,
       position: resolvedPages.length,
+      background: voiceContent.background,
       content: {
         voice: voiceItem,
-        heading: 'A Voice Note For You',
+        heading: voiceHeading,
+        subtitle: voiceSubtitle,
+        background: voiceContent.background,
       },
     })
   }
@@ -255,11 +302,13 @@ export function resolveRecipientPages({
     badge: 'With Love',
     sectionId: finalSection?.id,
     position: resolvedPages.length,
+    background: finalContent.background,
     content: {
       heading: finalHeading,
       body: finalBody,
       signature: senderName,
       music: musicItem,
+      background: finalContent.background,
     },
   })
 

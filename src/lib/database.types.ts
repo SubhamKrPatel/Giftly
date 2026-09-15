@@ -26,25 +26,49 @@ export interface GiftThemeConfig {
   [key: string]: unknown
 }
 
+export type SlideBackgroundMode = 'automatic' | 'gradient' | 'photo' | 'solid'
+export type SlideGradientMood = 'automatic' | 'soft' | 'warm' | 'elegant' | 'dreamy' | string
+export type SlideSolidColor = 'ivory' | 'cream' | 'midnight' | 'rose' | 'golden' | 'plum' | string
+export type SlidePhotoPosition = 'center' | 'top' | 'bottom'
+
+export interface SlideBackgroundConfig {
+  mode: SlideBackgroundMode
+  mediaId?: string
+  mediaUrl?: string
+  gradientMood?: SlideGradientMood
+  solidColor?: SlideSolidColor
+  overlay?: number // 0 to 100
+  position?: SlidePhotoPosition
+  [key: string]: unknown
+}
+
 export interface CoverSectionContent {
   headline: string
   subheadline?: string
+  background?: SlideBackgroundConfig
+  [key: string]: unknown
 }
 
 export interface MessageSectionContent {
   heading: string
   body: string
+  background?: SlideBackgroundConfig
+  [key: string]: unknown
 }
 
 export interface FinalMessageSectionContent {
   heading: string
   body: string
+  background?: SlideBackgroundConfig
+  [key: string]: unknown
 }
 
 export interface GallerySectionContent {
   layout?: 'grid' | 'masonry'
   caption?: string
-  items?: Array<{ id: string; url?: string; caption?: string }>
+  items?: Array<{ id: string; url?: string; caption?: string; mediaId?: string }>
+  background?: SlideBackgroundConfig
+  [key: string]: unknown
 }
 
 export interface StoryMemoryItem {
@@ -64,7 +88,28 @@ export interface StorySectionContent {
   body?: string
   backgroundImageUrl?: string
   backgroundMediaId?: string
+  background?: SlideBackgroundConfig
   items?: StoryMemoryItem[]
+  [key: string]: unknown
+}
+
+export interface VideoSectionContent {
+  heading?: string
+  subtitle?: string
+  background?: SlideBackgroundConfig
+  [key: string]: unknown
+}
+
+export interface VoiceSectionContent {
+  heading?: string
+  subtitle?: string
+  background?: SlideBackgroundConfig
+  [key: string]: unknown
+}
+
+export interface MusicSectionContent {
+  volume?: number // 0 to 100, default 70
+  startFromBeginning?: boolean
   [key: string]: unknown
 }
 
@@ -84,6 +129,9 @@ export type SectionContent =
   | FinalMessageSectionContent
   | GallerySectionContent
   | StorySectionContent
+  | VideoSectionContent
+  | VoiceSectionContent
+  | MusicSectionContent
   | Record<string, unknown>
 
 export type MediaType = 'image' | 'video' | 'audio' | 'voice' | string
@@ -395,9 +443,10 @@ export type GiftMedia = Database['public']['Tables']['gift_media']['Row']
 export type GiftMediaInsert = Database['public']['Tables']['gift_media']['Insert']
 export type GiftMediaUpdate = Database['public']['Tables']['gift_media']['Update']
 
-// Client-augmented type with resolved signed URL
+// Client-augmented type with resolved signed URL and optional caption
 export type GiftMediaItem = GiftMedia & {
   signedUrl?: string
+  caption?: string
 }
 
 // Convenience joined type

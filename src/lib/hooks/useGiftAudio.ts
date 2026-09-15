@@ -69,7 +69,7 @@ export function useGiftAudio(
     fetchAudio()
   }, [fetchAudio])
 
-  // Save voice recording (blob)
+  // Save voice recording (blob) with safe replacement lifecycle
   const saveVoiceRecording = useCallback(
     async (blob: Blob, mimeType: string): Promise<{ success: boolean; error?: string }> => {
       if (!giftId || !user) {
@@ -80,38 +80,38 @@ export function useGiftAudio(
       setError(null)
 
       try {
-        // 1. If audio already exists, delete previous storage object & DB record
-        if (audioItem) {
-          await deleteMediaFromStorage(audioItem.storage_path)
-          await supabase.from('gift_media').delete().eq('id', audioItem.id)
-        }
-
-        const mediaId = crypto.randomUUID()
+        const newMediaId = crypto.randomUUID()
         const ext = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm'
-        const storagePath = generateVoiceStoragePath(user.id, giftId, mediaId, ext)
+        const newStoragePath = generateVoiceStoragePath(user.id, giftId, newMediaId, ext)
 
-        // 2. Upload to storage
-        const { error: storageError } = await uploadMediaToStorage(storagePath, blob, mimeType)
+        // 1. Upload new recording to storage FIRST
+        const { error: storageError } = await uploadMediaToStorage(newStoragePath, blob, mimeType)
         if (storageError) {
           throw new Error(`Storage upload failed: ${storageError.message}`)
         }
 
-        // 3. Insert record into gift_media
+        // 2. Insert new record into gift_media
         const { error: dbError } = await supabase.from('gift_media').insert({
-          id: mediaId,
+          id: newMediaId,
           gift_id: giftId,
           section_id: sectionId || null,
           media_type: 'audio',
-          storage_path: storagePath,
-          file_name: 'voice-message.webm',
+          storage_path: newStoragePath,
+          file_name: `voice-note.${ext}`,
           mime_type: mimeType,
           file_size: blob.size,
           position: 0,
         })
 
         if (dbError) {
-          await deleteMediaFromStorage(storagePath)
+          await deleteMediaFromStorage(newStoragePath)
           throw dbError
+        }
+
+        // 3. Clean up previous voice media only after new upload succeeds
+        if (audioItem) {
+          await deleteMediaFromStorage(audioItem.storage_path)
+          await supabase.from('gift_media').delete().eq('id', audioItem.id)
         }
 
         await fetchAudio()
@@ -128,7 +128,74 @@ export function useGiftAudio(
     [giftId, sectionId, user, audioItem, fetchAudio]
   )
 
-  // Upload music file
+  // Upload an audio file as voice note with safe replacement lifecycle
+  const uploadVoiceFile = useCallback(
+    async (file: File): Promise<{ success: boolean; error?: string }> => {
+      if (!giftId || !user) {
+        return { success: false, error: 'User not authenticated or gift not found.' }
+      }
+
+      // Validate audio file
+      const validation = validateMusicFile(file)
+      if (!validation.valid) {
+        setError(validation.error || 'Invalid audio file.')
+        return { success: false, error: validation.error }
+      }
+
+      setUploading(true)
+      setError(null)
+
+      try {
+        const newMediaId = crypto.randomUUID()
+        const parts = file.name.split('.')
+        const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : 'mp3'
+        const newStoragePath = generateVoiceStoragePath(user.id, giftId, newMediaId, ext)
+
+        // 1. Upload to storage FIRST
+        const { error: storageError } = await uploadMediaToStorage(newStoragePath, file)
+        if (storageError) {
+          throw new Error(`Storage upload failed: ${storageError.message}`)
+        }
+
+        // 2. Insert new record into gift_media
+        const { error: dbError } = await supabase.from('gift_media').insert({
+          id: newMediaId,
+          gift_id: giftId,
+          section_id: sectionId || null,
+          media_type: 'audio',
+          storage_path: newStoragePath,
+          file_name: file.name,
+          mime_type: file.type || 'audio/mpeg',
+          file_size: file.size,
+          position: 0,
+        })
+
+        if (dbError) {
+          await deleteMediaFromStorage(newStoragePath)
+          throw dbError
+        }
+
+        // 3. Clean up previous voice media only after new upload succeeds
+        if (audioItem) {
+          await deleteMediaFromStorage(audioItem.storage_path)
+          await supabase.from('gift_media').delete().eq('id', audioItem.id)
+        }
+
+        await fetchAudio()
+        return { success: true }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to upload voice audio'
+        console.error('[useGiftAudio:voice] Upload error:', msg)
+        setError(msg)
+        return { success: false, error: msg }
+      } finally {
+        setUploading(false)
+      }
+    },
+    [giftId, sectionId, user, audioItem, fetchAudio]
+  )
+
+  // Upload music file with safe replacement lifecycle
   const uploadMusic = useCallback(
     async (file: File): Promise<{ success: boolean; error?: string }> => {
       if (!giftId || !user) {
@@ -146,28 +213,22 @@ export function useGiftAudio(
       setError(null)
 
       try {
-        // 1. If audio already exists, delete previous storage object & DB record
-        if (audioItem) {
-          await deleteMediaFromStorage(audioItem.storage_path)
-          await supabase.from('gift_media').delete().eq('id', audioItem.id)
-        }
+        const newMediaId = crypto.randomUUID()
+        const newStoragePath = generateMusicStoragePath(user.id, giftId, newMediaId, file.name)
 
-        const mediaId = crypto.randomUUID()
-        const storagePath = generateMusicStoragePath(user.id, giftId, mediaId, file.name)
-
-        // 2. Upload to storage
-        const { error: storageError } = await uploadMediaToStorage(storagePath, file)
+        // 1. Upload to storage FIRST
+        const { error: storageError } = await uploadMediaToStorage(newStoragePath, file)
         if (storageError) {
           throw new Error(`Storage upload failed: ${storageError.message}`)
         }
 
-        // 3. Insert record into gift_media
+        // 2. Insert new record into gift_media
         const { error: dbError } = await supabase.from('gift_media').insert({
-          id: mediaId,
+          id: newMediaId,
           gift_id: giftId,
           section_id: sectionId || null,
           media_type: 'audio',
-          storage_path: storagePath,
+          storage_path: newStoragePath,
           file_name: file.name,
           mime_type: file.type || 'audio/mpeg',
           file_size: file.size,
@@ -175,8 +236,14 @@ export function useGiftAudio(
         })
 
         if (dbError) {
-          await deleteMediaFromStorage(storagePath)
+          await deleteMediaFromStorage(newStoragePath)
           throw dbError
+        }
+
+        // 3. Clean up previous music media only after new upload succeeds
+        if (audioItem) {
+          await deleteMediaFromStorage(audioItem.storage_path)
+          await supabase.from('gift_media').delete().eq('id', audioItem.id)
         }
 
         await fetchAudio()
@@ -228,6 +295,7 @@ export function useGiftAudio(
     uploading,
     error,
     saveVoiceRecording,
+    uploadVoiceFile,
     uploadMusic,
     deleteAudio,
     refetch: fetchAudio,

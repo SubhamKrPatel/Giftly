@@ -65,8 +65,14 @@ export default function QRCodeCard({
   const handleDownload = () => {
     if (!qrDataUrl) return
 
+    const sanitizedName = (recipientName || 'gift')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+
     const link = document.createElement('a')
-    link.download = `giftly-qr-${publicSlug}.png`
+    link.download = `giftly-${sanitizedName}-qr.png`
     link.href = qrDataUrl
     document.body.appendChild(link)
     link.click()
@@ -189,7 +195,7 @@ export default function QRCodeCard({
           type="button"
           onClick={handleDownload}
           disabled={!qrDataUrl || loading}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-pink-600 shadow-xs hover:shadow-sm transition-all disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-pink-600 shadow-xs hover:shadow-sm transition-all disabled:opacity-50 cursor-pointer"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Download PNG</span>
@@ -199,7 +205,7 @@ export default function QRCodeCard({
           type="button"
           onClick={handlePrint}
           disabled={!qrDataUrl || loading}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-neutral-700 hover:text-neutral-900 bg-warm-100 hover:bg-warm-200 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-neutral-700 hover:text-neutral-900 bg-warm-100 hover:bg-warm-200 transition-colors disabled:opacity-50 cursor-pointer"
         >
           <Printer className="w-3.5 h-3.5" />
           <span>Print</span>

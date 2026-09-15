@@ -249,6 +249,70 @@ export function useGiftVideos(giftId?: string | null, sectionId?: string | null)
     },
     []
   )
+  // Replace a video safely (uploads new first -> updates DB -> cleans up old)
+  const replaceVideo = useCallback(
+    async (oldItem: GiftMediaItem, newFile: File): Promise<{ success: boolean; error?: string }> => {
+      if (!giftId || !user) {
+        return { success: false, error: 'User not authenticated or gift not found.' }
+      }
+
+      // 1. Validate replacement file
+      const validation = validateVideoFile(newFile)
+      if (!validation.valid) {
+        setError(validation.error || 'Invalid video file.')
+        return { success: false, error: validation.error }
+      }
+
+      setUploading(true)
+      setError(null)
+
+      try {
+        const newMediaId = crypto.randomUUID()
+        const newStoragePath = generateVideoStoragePath(user.id, giftId, newMediaId, newFile.name)
+
+        // 2. Upload new video to storage first
+        const { error: storageError } = await uploadMediaToStorage(newStoragePath, newFile)
+        if (storageError) {
+          throw new Error(`Storage upload failed: ${storageError.message}`)
+        }
+
+        // 3. Insert new record into gift_media at the same position
+        const { error: dbError } = await supabase.from('gift_media').insert({
+          id: newMediaId,
+          gift_id: giftId,
+          section_id: sectionId || null,
+          media_type: 'video',
+          storage_path: newStoragePath,
+          file_name: newFile.name,
+          mime_type: newFile.type,
+          file_size: newFile.size,
+          position: oldItem.position ?? 0,
+        })
+
+        if (dbError) {
+          // Clean up new storage file if DB insert fails
+          await deleteMediaFromStorage(newStoragePath)
+          throw dbError
+        }
+
+        // 4. Safe cleanup of old media
+        await deleteMediaFromStorage(oldItem.storage_path)
+        await supabase.from('gift_media').delete().eq('id', oldItem.id)
+
+        // 5. Refresh videos list
+        await fetchVideos()
+        return { success: true }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to replace video'
+        console.error('[useGiftVideos] Replace error:', msg)
+        setError(msg)
+        return { success: false, error: msg }
+      } finally {
+        setUploading(false)
+      }
+    },
+    [giftId, sectionId, user, fetchVideos]
+  )
 
   return {
     videoItems,
@@ -259,6 +323,7 @@ export function useGiftVideos(giftId?: string | null, sectionId?: string | null)
     uploadVideoFiles,
     reorderVideos,
     deleteVideo,
+    replaceVideo,
     refetch: fetchVideos,
   }
 }

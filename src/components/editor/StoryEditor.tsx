@@ -15,9 +15,13 @@ import {
   Check,
   ArrowLeft,
   X,
-  Wallpaper,
 } from 'lucide-react'
-import type { StorySectionContent, StoryMemoryItem } from '@/lib/database.types'
+import type {
+  StorySectionContent,
+  StoryMemoryItem,
+  SlideBackgroundConfig,
+  GiftThemeConfig,
+} from '@/lib/database.types'
 import {
   validateImageFile,
   generateMediaStoragePath,
@@ -26,13 +30,17 @@ import {
 } from '@/lib/storage'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import { cn } from '@/lib/utils'
+import SlideBackgroundControl, { type PhotoOption } from './SlideBackgroundControl'
 
 interface StoryEditorProps {
   content: StorySectionContent
   onChange: (updates: Partial<StorySectionContent>) => void
   giftId: string
   sectionId?: string
+  availablePhotos?: PhotoOption[]
+  occasionSlug?: string | null
+  theme?: GiftThemeConfig
+  onUploadBackgroundPhoto?: (file: File) => Promise<{ mediaId: string; url: string } | null>
 }
 
 export default function StoryEditor({
@@ -40,6 +48,10 @@ export default function StoryEditor({
   onChange,
   giftId,
   sectionId,
+  availablePhotos = [],
+  occasionSlug,
+  theme,
+  onUploadBackgroundPhoto,
 }: StoryEditorProps) {
   const { user } = useAuth()
 
@@ -279,16 +291,6 @@ export default function StoryEditor({
     newItems[targetIndex] = temp
 
     onChange({ items: newItems })
-  }
-
-  // ── Set Story Background Photo ──
-  const handleSetBackground = (imageUrl: string, mediaId?: string) => {
-    onChange({ backgroundImageUrl: imageUrl, backgroundMediaId: mediaId })
-  }
-
-  // ── Remove Story Background Photo ──
-  const handleRemoveBackground = () => {
-    onChange({ backgroundImageUrl: undefined, backgroundMediaId: undefined })
   }
 
   // Photos available across all memories for background selection
@@ -573,71 +575,51 @@ export default function StoryEditor({
         </div>
       </div>
 
-      {/* ── Story Background Photo Setting (Part K, L, M) ── */}
-      {memoryPhotos.length > 0 && (
-        <div className="p-4 rounded-2xl bg-warm-50/70 border border-warm-200/80 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-neutral-700">
-              <Wallpaper className="w-3.5 h-3.5 text-rose-500" />
-              <span>Story Background</span>
-            </div>
-            {backgroundImageUrl && (
-              <button
-                type="button"
-                onClick={handleRemoveBackground}
-                className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 transition-colors cursor-pointer"
-              >
-                Remove Background
-              </button>
-            )}
-          </div>
-
-          <p className="text-xs text-neutral-500 leading-relaxed">
-            Select one of your memory photos as a soft background backdrop for the Story page.
-          </p>
-
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {/* None option */}
-            <button
-              type="button"
-              onClick={handleRemoveBackground}
-              className={cn(
-                'px-3 py-2 rounded-xl text-xs font-semibold flex-shrink-0 transition-all cursor-pointer min-h-[40px] border',
-                !backgroundImageUrl
-                  ? 'bg-rose-500 text-white border-rose-500 shadow-xs'
-                  : 'bg-white text-neutral-700 border-warm-200 hover:bg-warm-100'
-              )}
-            >
-              None
-            </button>
-
-            {/* Photo options */}
-            {memoryPhotos.map((m, idx) => {
-              const isSelected = backgroundImageUrl === m.imageUrl || backgroundMediaId === m.mediaId
-              return (
-                <button
-                  key={m.id || idx}
-                  type="button"
-                  onClick={() => m.imageUrl && handleSetBackground(m.imageUrl, m.mediaId)}
-                  className={cn(
-                    'flex items-center gap-2 p-1.5 pr-3 rounded-xl text-xs font-medium flex-shrink-0 transition-all cursor-pointer min-h-[40px] border',
-                    isSelected
-                      ? 'bg-rose-50 text-rose-700 border-rose-400 ring-2 ring-rose-200 shadow-xs font-semibold'
-                      : 'bg-white text-neutral-700 border-warm-200 hover:bg-warm-100'
-                  )}
-                >
-                  <img
-                    src={m.imageUrl}
-                    alt={m.title}
-                    className="w-7 h-7 rounded-lg object-cover flex-shrink-0 bg-warm-100"
-                  />
-                  <span className="truncate max-w-[110px]">{m.title}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      {/* ── Story Slide Background Setting (Unified with SlideBackgroundControl) ── */}
+      <SlideBackgroundControl
+        background={
+          content?.background ||
+          (backgroundImageUrl
+            ? {
+                mode: 'photo',
+                mediaUrl: backgroundImageUrl,
+                mediaId: backgroundMediaId,
+                position: 'center',
+                overlay: 50,
+              }
+            : { mode: 'automatic' })
+        }
+        onChange={(newBg: SlideBackgroundConfig) => {
+          if (newBg.mode === 'photo') {
+            onChange({
+              background: newBg,
+              backgroundImageUrl: newBg.mediaUrl,
+              backgroundMediaId: newBg.mediaId,
+            })
+          } else {
+            onChange({
+              background: newBg,
+              backgroundImageUrl: undefined,
+              backgroundMediaId: undefined,
+            })
+          }
+        }}
+        availablePhotos={[
+          ...memoryPhotos.map((m) => ({
+            id: m.mediaId || m.id,
+            url: m.imageUrl,
+            title: m.title,
+          })),
+          ...availablePhotos.filter(
+            (p) => !memoryPhotos.some((m) => m.mediaId === p.id || m.imageUrl === p.url)
+          ),
+        ]}
+        occasionSlug={occasionSlug}
+        theme={theme}
+        onUploadPhoto={onUploadBackgroundPhoto}
+        title="Story Slide Background"
+        defaultCollapsed={true}
+      />
 
       {/* ── Memories List ── */}
       <div className="space-y-4">

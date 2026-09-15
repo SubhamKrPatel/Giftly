@@ -4,6 +4,7 @@ import type {
   GiftWithDetails,
   GiftSection,
   GiftMediaItem,
+  MusicSectionContent,
 } from '@/lib/database.types'
 import { resolveRecipientPages, type RecipientPage } from '@/lib/recipientPages'
 import { getOccasionVisualTheme } from '@/lib/occasionThemes'
@@ -45,6 +46,9 @@ export default function RecipientGiftExperience({
 
   // Extract Background Music Item (if music section is visible)
   const musicSection = sections.find((s) => s.section_type === 'music')
+  const musicContent = musicSection?.content as MusicSectionContent | undefined
+  const defaultVolume = typeof musicContent?.volume === 'number' ? musicContent.volume / 100 : 0.7
+
   const musicItem = useMemo(() => {
     if (musicSection && musicSection.is_visible === false) return null
     return (
@@ -242,6 +246,7 @@ export default function RecipientGiftExperience({
         occasionTheme={occasionTheme}
         theme={theme}
         pageType={currentPage.type}
+        background={currentPage.background}
       />
 
       {/* ── Top Header Brand Bar ── */}
@@ -264,6 +269,7 @@ export default function RecipientGiftExperience({
           <RecipientMusicController
             musicItem={musicItem}
             theme={theme}
+            defaultVolume={defaultVolume}
             onRegisterHandle={onRegisterMusicHandle}
           />
 

@@ -9,10 +9,18 @@ import {
   AlertCircle,
   X,
   PlayCircle,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react'
-import type { GiftMediaItem } from '@/lib/database.types'
-import { MAX_VIDEOS_PER_GIFT } from '@/lib/storage'
+import type {
+  GiftMediaItem,
+  VideoSectionContent,
+  SlideBackgroundConfig,
+  GiftThemeConfig,
+} from '@/lib/database.types'
+import { MAX_VIDEOS_PER_GIFT, validateVideoFile } from '@/lib/storage'
 import Button from '@/components/ui/Button'
+import SlideBackgroundControl from '@/components/editor/SlideBackgroundControl'
 import { cn } from '@/lib/utils'
 
 interface VideoEditorProps {
@@ -24,6 +32,13 @@ interface VideoEditorProps {
   onUpload: (files: FileList | File[]) => Promise<{ successfulCount: number; errors: string[] }>
   onReorder: (mediaId: string, direction: 'up' | 'down') => Promise<void>
   onDelete: (item: GiftMediaItem) => Promise<{ success: boolean; error?: string }>
+  onReplaceVideo?: (oldItem: GiftMediaItem, newFile: File) => Promise<{ success: boolean; error?: string }>
+  content?: VideoSectionContent
+  onChangeContent?: (updates: Partial<VideoSectionContent>) => void
+  availablePhotos?: Array<{ id: string; url?: string; title?: string }>
+  occasionSlug?: string
+  theme?: GiftThemeConfig
+  onUploadBackgroundPhoto?: (file: File) => Promise<{ mediaId: string; url: string } | null>
 }
 
 export default function VideoEditor({
@@ -31,15 +46,29 @@ export default function VideoEditor({
   loading,
   uploading,
   uploadProgress,
-  error,
+  error: serverError,
   onUpload,
   onReorder,
   onDelete,
+  onReplaceVideo,
+  content = {},
+  onChangeContent,
+  availablePhotos = [],
+  occasionSlug,
+  theme,
+  onUploadBackgroundPhoto,
 }: VideoEditorProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const replaceInputRef = useRef<HTMLInputElement | null>(null)
+
   const [isDragging, setIsDragging] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<GiftMediaItem | null>(null)
+  const [itemToReplace, setItemToReplace] = useState<GiftMediaItem | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [replacing, setReplacing] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
+
+  const activeError = localError || serverError
 
   // Drag & drop handlers
   const handleDragOver = (e: React.DragEvent) => {
@@ -58,6 +87,7 @@ export default function VideoEditor({
     e.preventDefault()
     e.stopPropagation()
     setIsDragging(false)
+    setLocalError(null)
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       onUpload(e.dataTransfer.files)
@@ -65,18 +95,69 @@ export default function VideoEditor({
   }
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalError(null)
     if (e.target.files && e.target.files.length > 0) {
       onUpload(e.target.files)
       e.target.value = ''
     }
   }
 
+  // Replace Video Selection
+  const handleTriggerReplace = (item: GiftMediaItem) => {
+    setItemToReplace(item)
+    setLocalError(null)
+    if (replaceInputRef.current) {
+      replaceInputRef.current.value = ''
+      replaceInputRef.current.click()
+    }
+  }
+
+  const handleReplaceInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!itemToReplace || !e.target.files || e.target.files.length === 0) return
+    const file = e.target.files[0]
+    e.target.value = ''
+
+    // Validate
+    const validation = validateVideoFile(file)
+    if (!validation.valid) {
+      setLocalError(validation.error || 'Invalid video file.')
+      return
+    }
+
+    setReplacing(true)
+    setLocalError(null)
+
+    if (onReplaceVideo) {
+      const res = await onReplaceVideo(itemToReplace, file)
+      if (!res.success && res.error) {
+        setLocalError(res.error)
+      }
+    } else {
+      // Fallback: upload then delete
+      const uploadRes = await onUpload([file])
+      if (uploadRes.successfulCount > 0) {
+        await onDelete(itemToReplace)
+      }
+    }
+
+    setReplacing(false)
+    setItemToReplace(null)
+  }
+
+  // Delete Video Handlers
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return
     setDeleting(true)
     await onDelete(itemToDelete)
     setDeleting(false)
     setItemToDelete(null)
+  }
+
+  // Slide Background Change Handler
+  const handleBackgroundChange = (newBg: SlideBackgroundConfig) => {
+    if (onChangeContent) {
+      onChangeContent({ background: newBg })
+    }
   }
 
   const canAddMore = videoItems.length < MAX_VIDEOS_PER_GIFT
@@ -107,24 +188,34 @@ export default function VideoEditor({
       </div>
 
       {/* Error Alert */}
-      {error && (
+      {activeError && (
         <div
           role="alert"
           className="flex items-start gap-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl p-4 text-sm animate-shake"
         >
           <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">{error}</div>
+          <div className="flex-1">{activeError}</div>
+          <button
+            type="button"
+            onClick={() => setLocalError(null)}
+            className="text-rose-400 hover:text-rose-700 p-0.5"
+            aria-label="Dismiss error"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
       {/* Upload Progress Banner */}
-      {uploading && uploadProgress && (
+      {(uploading || replacing) && uploadProgress && (
         <div className="bg-rose-50/80 border border-rose-200/80 rounded-2xl p-4 space-y-2 animate-fade-in">
           <div className="flex items-center justify-between text-xs font-semibold text-rose-900">
             <span className="flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
               <span>
-                Uploading video {uploadProgress.current} of {uploadProgress.total}…
+                {replacing
+                  ? 'Replacing video clip…'
+                  : `Uploading video ${uploadProgress.current} of ${uploadProgress.total}…`}
               </span>
             </span>
             <span className="truncate max-w-[150px] font-normal text-rose-700">
@@ -142,7 +233,7 @@ export default function VideoEditor({
         </div>
       )}
 
-      {/* Hidden File Input */}
+      {/* Hidden File Inputs */}
       <input
         ref={fileInputRef}
         type="file"
@@ -153,15 +244,70 @@ export default function VideoEditor({
         id="videoFileInput"
       />
 
+      <input
+        ref={replaceInputRef}
+        type="file"
+        accept="video/mp4,video/webm"
+        onChange={handleReplaceInputChange}
+        className="hidden"
+        id="videoReplaceInput"
+      />
+
+      {/* Heading & Subtitle Customization */}
+      {onChangeContent && (
+        <div className="bg-cream-50/60 border border-warm-200 rounded-3xl p-5 sm:p-6 space-y-4">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500">
+            <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+            <span>Page Title & Subtitle</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="videoHeadingInput"
+                className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1"
+              >
+                Heading
+              </label>
+              <input
+                id="videoHeadingInput"
+                type="text"
+                value={content.heading || ''}
+                onChange={(e) => onChangeContent({ heading: e.target.value })}
+                placeholder="e.g. Video Message"
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-warm-300 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all text-neutral-800 placeholder:text-neutral-400"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="videoSubtitleInput"
+                className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-1"
+              >
+                Subtitle / Note
+              </label>
+              <input
+                id="videoSubtitleInput"
+                type="text"
+                value={content.subtitle || ''}
+                onChange={(e) => onChangeContent({ subtitle: e.target.value })}
+                placeholder="e.g. Take a moment to watch this clip"
+                className="w-full px-3.5 py-2.5 text-sm bg-white border border-warm-300 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 transition-all text-neutral-800 placeholder:text-neutral-400"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Drag & Drop Dropzone */}
       {canAddMore ? (
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => !uploading && fileInputRef.current?.click()}
+          onClick={() => !uploading && !replacing && fileInputRef.current?.click()}
           className={cn(
-            'group relative border-2 border-dashed rounded-3xl p-8 text-center transition-all duration-200 cursor-pointer',
+            'group relative border-2 border-dashed rounded-3xl p-6 sm:p-8 text-center transition-all duration-200 cursor-pointer min-h-[160px] flex flex-col items-center justify-center',
             isDragging
               ? 'border-rose-500 bg-rose-50/70 scale-[0.99]'
               : 'border-warm-300 hover:border-rose-400 bg-cream-50/60 hover:bg-rose-50/30'
@@ -182,7 +328,7 @@ export default function VideoEditor({
             type="button"
             variant="outline"
             size="sm"
-            disabled={uploading}
+            disabled={uploading || replacing}
             onClick={(e) => {
               e.stopPropagation()
               fileInputRef.current?.click()
@@ -211,7 +357,7 @@ export default function VideoEditor({
             <span className="text-[11px] text-neutral-400">Reorder with ↑ / ↓</span>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {videoItems.map((item, index) => {
               const isFirst = index === 0
               const isLast = index === videoItems.length - 1
@@ -222,7 +368,7 @@ export default function VideoEditor({
                   key={item.id}
                   className="bg-white rounded-2xl border border-warm-200 shadow-xs hover:shadow-card p-4 space-y-3 transition-all"
                 >
-                  {/* Video Player */}
+                  {/* Video Player Preview (NO autoplay, seek, controls) */}
                   <div className="aspect-video w-full rounded-xl overflow-hidden bg-neutral-900 shadow-inner">
                     {item.signedUrl ? (
                       <video
@@ -231,6 +377,7 @@ export default function VideoEditor({
                         preload="metadata"
                         playsInline
                         className="w-full h-full object-contain"
+                        aria-label={`Preview video: ${item.file_name}`}
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center text-neutral-500 gap-2">
@@ -241,7 +388,7 @@ export default function VideoEditor({
                   </div>
 
                   {/* Metadata and Controls */}
-                  <div className="flex items-center justify-between gap-3 pt-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded-md bg-warm-100 text-neutral-700 text-[10px] font-bold">
@@ -254,34 +401,51 @@ export default function VideoEditor({
                       <p className="text-[11px] text-neutral-400 mt-0.5">{sizeMB} MB</p>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* Actions Toolbar */}
+                    <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+                      {/* Replace */}
                       <button
                         type="button"
-                        disabled={isFirst}
+                        disabled={uploading || replacing}
+                        onClick={() => handleTriggerReplace(item)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-warm-200 text-xs font-semibold text-neutral-700 hover:text-rose-600 hover:bg-warm-50 transition-colors disabled:opacity-40 min-h-[36px]"
+                        title="Replace video"
+                        aria-label="Replace this video"
+                      >
+                        <RefreshCw className={cn('w-3.5 h-3.5', replacing && itemToReplace?.id === item.id && 'animate-spin')} />
+                        <span>Replace</span>
+                      </button>
+
+                      {/* Move Up */}
+                      <button
+                        type="button"
+                        disabled={isFirst || uploading || replacing}
                         onClick={() => onReorder(item.id, 'up')}
-                        className="p-1.5 rounded-lg border border-warm-200 text-neutral-600 hover:bg-warm-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="p-2 rounded-lg border border-warm-200 text-neutral-600 hover:bg-warm-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed min-h-[36px] min-w-[36px] flex items-center justify-center"
                         title="Move up"
                         aria-label="Move video up"
                       >
                         <ChevronUp className="w-4 h-4" />
                       </button>
 
+                      {/* Move Down */}
                       <button
                         type="button"
-                        disabled={isLast}
+                        disabled={isLast || uploading || replacing}
                         onClick={() => onReorder(item.id, 'down')}
-                        className="p-1.5 rounded-lg border border-warm-200 text-neutral-600 hover:bg-warm-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="p-2 rounded-lg border border-warm-200 text-neutral-600 hover:bg-warm-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed min-h-[36px] min-w-[36px] flex items-center justify-center"
                         title="Move down"
                         aria-label="Move video down"
                       >
                         <ChevronDown className="w-4 h-4" />
                       </button>
 
+                      {/* Delete */}
                       <button
                         type="button"
+                        disabled={uploading || replacing}
                         onClick={() => setItemToDelete(item)}
-                        className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                        className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                         title="Delete video"
                         aria-label="Delete video"
                       >
@@ -297,6 +461,20 @@ export default function VideoEditor({
       ) : (
         <div className="py-8 text-center border border-dashed border-warm-200 rounded-3xl p-6 text-neutral-400 text-xs">
           No videos added yet. Upload a heartfelt recorded video message or memory clip!
+        </div>
+      )}
+
+      {/* ── Slide Background Customization (Part 14D & 14E) ── */}
+      {onChangeContent && (
+        <div className="pt-2 border-t border-warm-200">
+          <SlideBackgroundControl
+            background={content.background}
+            onChange={handleBackgroundChange}
+            availablePhotos={availablePhotos}
+            occasionSlug={occasionSlug}
+            theme={theme}
+            onUploadPhoto={onUploadBackgroundPhoto}
+          />
         </div>
       )}
 
@@ -316,7 +494,7 @@ export default function VideoEditor({
               <button
                 type="button"
                 onClick={() => setItemToDelete(null)}
-                className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700"
+                className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-700 min-h-[36px] min-w-[36px] flex items-center justify-center"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
@@ -328,7 +506,7 @@ export default function VideoEditor({
                 Delete this video?
               </h3>
               <p className="text-xs text-neutral-500 mt-1 leading-relaxed">
-                Are you sure you want to remove &quot;{itemToDelete.file_name}&quot; from your gift? This action cannot be undone.
+                This video will be removed from your gift. This action cannot be undone.
               </p>
             </div>
 
@@ -347,7 +525,7 @@ export default function VideoEditor({
                 type="button"
                 disabled={deleting}
                 onClick={handleConfirmDelete}
-                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 transition-colors shadow-sm disabled:opacity-60"
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 transition-colors shadow-sm disabled:opacity-60 min-h-[44px]"
               >
                 {deleting ? (
                   <>

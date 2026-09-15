@@ -1,17 +1,30 @@
 import { MessageSquareHeart, Type } from 'lucide-react'
-import type { MessageSectionContent } from '@/lib/database.types'
+import type {
+  MessageSectionContent,
+  SlideBackgroundConfig,
+  GiftThemeConfig,
+} from '@/lib/database.types'
+import SlideBackgroundControl, { type PhotoOption } from './SlideBackgroundControl'
 
 interface MessageEditorProps {
   content: MessageSectionContent
   onChange: (updates: Partial<MessageSectionContent>) => void
   recipientName?: string
   onOpenAI?: (mode: 'generate' | 'improve') => void
+  availablePhotos?: PhotoOption[]
+  occasionSlug?: string | null
+  theme?: GiftThemeConfig
+  onUploadBackgroundPhoto?: (file: File) => Promise<{ mediaId: string; url: string } | null>
 }
 
 export default function MessageEditor({
   content,
   onChange,
   recipientName = 'Chahat',
+  availablePhotos = [],
+  occasionSlug,
+  theme,
+  onUploadBackgroundPhoto,
 }: MessageEditorProps) {
   const heading = content?.heading ?? ''
   const body = content?.body ?? ''
@@ -100,6 +113,18 @@ export default function MessageEditor({
             Tip: Share meaningful memories, inside jokes, or words of gratitude.
           </p>
         </div>
+
+        {/* ── Slide Background Customization ── */}
+        <SlideBackgroundControl
+          background={content?.background}
+          onChange={(bg: SlideBackgroundConfig) => onChange({ background: bg })}
+          availablePhotos={availablePhotos}
+          occasionSlug={occasionSlug}
+          theme={theme}
+          onUploadPhoto={onUploadBackgroundPhoto}
+          title="Message Slide Background"
+          defaultCollapsed={true}
+        />
       </div>
     </div>
   )

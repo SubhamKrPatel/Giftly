@@ -21,7 +21,12 @@ import type {
   CoverSectionContent,
   MessageSectionContent,
   StorySectionContent,
+  GallerySectionContent,
+  VideoSectionContent,
+  VoiceSectionContent,
+  MusicSectionContent,
   FinalMessageSectionContent,
+  GiftMediaItem,
 } from '@/lib/database.types'
 import type { GeneratedFullGiftResult } from '@/lib/services/aiService'
 import Button from '@/components/ui/Button'
@@ -111,7 +116,7 @@ export default function GiftEditorPage() {
     deleteMedia: deletePhoto,
   } = useGiftMedia(giftId, gallerySection?.id)
 
-  // Video hook for video messages (Part 4C)
+  // Video hook for video messages (Part 4C & 14E)
   const {
     videoItems,
     loading: loadingVideos,
@@ -121,15 +126,17 @@ export default function GiftEditorPage() {
     uploadVideoFiles,
     reorderVideos,
     deleteVideo,
+    replaceVideo,
   } = useGiftVideos(giftId, videoSection?.id)
 
-  // Audio hooks for Voice Note & Background Music (Part 4D)
+  // Audio hooks for Voice Note & Background Music (Part 4D & 14E)
   const {
     audioItem: voiceItem,
     loading: loadingVoice,
     uploading: uploadingVoice,
     error: voiceError,
     saveVoiceRecording,
+    uploadVoiceFile,
     deleteAudio: deleteVoiceRecording,
   } = useGiftAudio(giftId, voiceSection?.id, 'voice')
 
@@ -141,6 +148,78 @@ export default function GiftEditorPage() {
     uploadMusic,
     deleteAudio: deleteMusicTrack,
   } = useGiftAudio(giftId, musicSection?.id, 'music')
+
+  // Available photos for slide backgrounds across all sections
+  const availablePhotosForBackground = useMemo(() => {
+    const list: Array<{ id: string; url?: string; title?: string }> = []
+    mediaItems.forEach((m) => {
+      if (m.signedUrl) {
+        list.push({ id: m.id, url: m.signedUrl, title: m.file_name })
+      }
+    })
+    const storyContent = storySection?.content as StorySectionContent | undefined
+    storyContent?.items?.forEach((item) => {
+      if (item.imageUrl && !list.some((p) => p.url === item.imageUrl)) {
+        list.push({ id: item.mediaId || item.id, url: item.imageUrl, title: item.title })
+      }
+    })
+    return list
+  }, [mediaItems, storySection?.content])
+
+  // Safe delete with background reference cleanup (Part AB)
+  const handleDeletePhotoWithCleanup = async (item: GiftMediaItem) => {
+    // 1. Identify sections referencing this media as background
+    const sectionTypesToClean: string[] = []
+    sections.forEach((sec) => {
+      const c = sec.content as Record<string, unknown>
+      const bg = c?.background as { mediaId?: string; mediaUrl?: string } | undefined
+      if (
+        bg?.mediaId === item.id ||
+        bg?.mediaUrl === item.signedUrl ||
+        c?.backgroundMediaId === item.id ||
+        c?.backgroundImageUrl === item.signedUrl
+      ) {
+        sectionTypesToClean.push(sec.section_type)
+      }
+    })
+
+    // 2. Delete media
+    const res = await deletePhoto(item)
+    if (res.success) {
+      // 3. Clear background references
+      sectionTypesToClean.forEach((type) => {
+        updateSectionContent(type, {
+          background: { mode: 'automatic' },
+          ...(type === 'story'
+            ? { backgroundImageUrl: undefined, backgroundMediaId: undefined }
+            : {}),
+        })
+      })
+    }
+    return res
+  }
+
+  // Safe replace photo handler (Part I)
+  const handleReplacePhoto = async (oldItem: GiftMediaItem, newFile: File): Promise<boolean> => {
+    const uploadRes = await uploadPhotos([newFile])
+    if (uploadRes.successfulCount > 0) {
+      await handleDeletePhotoWithCleanup(oldItem)
+      return true
+    }
+    return false
+  }
+
+  // Upload background photo helper
+  const handleUploadBackgroundPhoto = async (
+    file: File
+  ): Promise<{ mediaId: string; url: string } | null> => {
+    const uploadRes = await uploadPhotos([file])
+    if (uploadRes.successfulCount > 0) {
+      const latest = mediaItems[mediaItems.length - 1]
+      return latest ? { mediaId: latest.id, url: latest.signedUrl || '' } : null
+    }
+    return null
+  }
 
   // AI Modal openers & appliers
   const handleOpenAI = (mode: 'generate' | 'improve' | 'full_gift' = 'generate') => {
@@ -333,6 +412,10 @@ export default function GiftEditorPage() {
             onChange={(updates) => updateSectionContent('message', updates)}
             recipientName={gift.recipient_name}
             onOpenAI={(aiMode) => handleOpenAI(aiMode)}
+            availablePhotos={availablePhotosForBackground}
+            occasionSlug={gift.occasion?.slug || gift.occasion?.name}
+            theme={gift.theme_config}
+            onUploadBackgroundPhoto={handleUploadBackgroundPhoto}
           />
         )}
 
@@ -343,10 +426,14 @@ export default function GiftEditorPage() {
             onChange={(updates) => updateSectionContent('story', updates)}
             giftId={gift.id}
             sectionId={storySection.id}
+            availablePhotos={availablePhotosForBackground}
+            occasionSlug={gift.occasion?.slug || gift.occasion?.name}
+            theme={gift.theme_config}
+            onUploadBackgroundPhoto={handleUploadBackgroundPhoto}
           />
         )}
 
-        {/* 6. Gallery / Photo Memories Editor (Part 4B) */}
+        {/* 6. Gallery / Photo Memories Editor (Part 4B & 14D) */}
         {selectedSectionType === 'gallery' && (
           <GalleryEditor
             mediaItems={mediaItems}
@@ -356,11 +443,17 @@ export default function GiftEditorPage() {
             error={photoError}
             onUpload={uploadPhotos}
             onReorder={reorderPhotos}
-            onDelete={deletePhoto}
+            onDelete={handleDeletePhotoWithCleanup}
+            content={gallerySection?.content as GallerySectionContent}
+            onChangeContent={(updates) => updateSectionContent('gallery', updates)}
+            occasionSlug={gift.occasion?.slug || gift.occasion?.name}
+            theme={gift.theme_config}
+            onReplacePhoto={handleReplacePhoto}
+            onUploadBackgroundPhoto={handleUploadBackgroundPhoto}
           />
         )}
 
-        {/* 7. Video Message Editor (Part 4C) */}
+        {/* 7. Video Message Editor (Part 4C & 14E) */}
         {selectedSectionType === 'video' && (
           <VideoEditor
             videoItems={videoItems}
@@ -371,10 +464,17 @@ export default function GiftEditorPage() {
             onUpload={uploadVideoFiles}
             onReorder={reorderVideos}
             onDelete={deleteVideo}
+            onReplaceVideo={replaceVideo}
+            content={videoSection?.content as VideoSectionContent}
+            onChangeContent={(updates) => updateSectionContent('video', updates)}
+            availablePhotos={availablePhotosForBackground}
+            occasionSlug={gift.occasion?.slug || gift.occasion?.name}
+            theme={gift.theme_config}
+            onUploadBackgroundPhoto={handleUploadBackgroundPhoto}
           />
         )}
 
-        {/* 8. Voice Message Editor (Part 4D) */}
+        {/* 8. Voice Message Editor (Part 4D & 14E) */}
         {selectedSectionType === 'voice' && (
           <VoiceEditor
             audioItem={voiceItem}
@@ -382,11 +482,18 @@ export default function GiftEditorPage() {
             uploading={uploadingVoice}
             error={voiceError}
             onSaveRecording={saveVoiceRecording}
+            onUploadAudio={uploadVoiceFile}
             onDeleteRecording={deleteVoiceRecording}
+            content={voiceSection?.content as VoiceSectionContent}
+            onChangeContent={(updates) => updateSectionContent('voice', updates)}
+            availablePhotos={availablePhotosForBackground}
+            occasionSlug={gift.occasion?.slug || gift.occasion?.name}
+            theme={gift.theme_config}
+            onUploadBackgroundPhoto={handleUploadBackgroundPhoto}
           />
         )}
 
-        {/* 9. Background Music Editor (Part 4D) */}
+        {/* 9. Background Music Editor (Part 4D & 14F) */}
         {selectedSectionType === 'music' && (
           <MusicEditor
             audioItem={musicItem}
@@ -395,6 +502,10 @@ export default function GiftEditorPage() {
             error={musicError}
             onUploadMusic={uploadMusic}
             onDeleteMusic={deleteMusicTrack}
+            content={musicSection?.content as MusicSectionContent}
+            onChangeContent={(updates) => updateSectionContent('music', updates)}
+            theme={gift.theme_config}
+            occasionSlug={gift.occasion?.slug || gift.occasion?.name}
           />
         )}
 
@@ -405,6 +516,10 @@ export default function GiftEditorPage() {
             onChange={(updates) => updateSectionContent('final_message', updates)}
             senderName={gift.sender_name || undefined}
             onOpenAI={() => handleOpenAI('full_gift')}
+            availablePhotos={availablePhotosForBackground}
+            occasionSlug={gift.occasion?.slug || gift.occasion?.name}
+            theme={gift.theme_config}
+            onUploadBackgroundPhoto={handleUploadBackgroundPhoto}
           />
         )}
       </div>
@@ -600,11 +715,16 @@ export default function GiftEditorPage() {
         onApplyFullGift={handleApplyAIFullGift}
       />
 
-      {/* Publish Modal (Part 7) */}
+      {/* Publish Modal (Part 7 & Part 14G) */}
       <PublishModal
         isOpen={isPublishModalOpen}
         onClose={() => setIsPublishModalOpen(false)}
         recipientName={gift.recipient_name}
+        occasionName={gift.occasion?.name}
+        templateName={gift.template?.name}
+        giftTitle={gift.title || undefined}
+        giftId={gift.id}
+        momentsCount={sections.filter((s) => s.is_visible !== false).length}
         onPublish={publish}
       />
 

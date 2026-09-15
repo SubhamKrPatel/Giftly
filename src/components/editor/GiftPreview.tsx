@@ -1,10 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   Heart,
   MessageSquareHeart,
   Image as ImageIcon,
-  Video as VideoIcon,
-  Mic,
   ChevronLeft,
   ChevronRight,
   Gift as GiftIcon,
@@ -14,17 +12,19 @@ import type {
   GiftWithDetails,
   GiftSection,
   GiftMediaItem,
+  MusicSectionContent,
 } from '@/lib/database.types'
 import { resolveRecipientPages, type RecipientPage } from '@/lib/recipientPages'
 import { getOccasionVisualTheme } from '@/lib/occasionThemes'
 import RecipientBackground from '@/components/recipient/visuals/RecipientBackground'
-import RecipientMusicController from '@/components/recipient/RecipientMusicController'
+import RecipientMusicController, { type RecipientMusicControllerHandle } from '@/components/recipient/RecipientMusicController'
 import BirthdayOpeningMoment from '@/components/recipient/pages/BirthdayOpeningMoment'
 import ValentinesOpeningMoment from '@/components/recipient/pages/ValentinesOpeningMoment'
 import AnniversaryOpeningMoment from '@/components/recipient/pages/AnniversaryOpeningMoment'
 import FriendshipOpeningMoment from '@/components/recipient/pages/FriendshipOpeningMoment'
 import WeddingOpeningMoment from '@/components/recipient/pages/WeddingOpeningMoment'
 import FestivalOpeningMoment from '@/components/recipient/pages/FestivalOpeningMoment'
+import VideoMoment from '@/components/recipient/pages/VideoMoment'
 
 interface GiftPreviewProps {
   gift: GiftWithDetails
@@ -70,6 +70,26 @@ export default function GiftPreview({
     if (musicItem) list.push(musicItem)
     return list
   }, [mediaItems, videoItems, voiceItem, musicItem])
+
+  // Extract music section settings for volume
+  const musicSection = sections.find((s) => s.section_type === 'music')
+  const musicContent = musicSection?.content as MusicSectionContent | undefined
+  const defaultVolume = typeof musicContent?.volume === 'number' ? musicContent.volume / 100 : 0.7
+
+  // Music Controller Handle Ref for Video/Voice Coordination
+  const musicHandleRef = useRef<RecipientMusicControllerHandle | null>(null)
+
+  const onRegisterMusicHandle = useCallback((handle: RecipientMusicControllerHandle) => {
+    musicHandleRef.current = handle
+  }, [])
+
+  const handleMediaPlay = useCallback(() => {
+    musicHandleRef.current?.handleVideoPlay()
+  }, [])
+
+  const handleMediaPause = useCallback(() => {
+    musicHandleRef.current?.handleVideoPause()
+  }, [])
 
   const pages: RecipientPage[] = useMemo(() => {
     return resolveRecipientPages({ gift, sections, mediaItems: allMedia })
@@ -146,6 +166,7 @@ export default function GiftPreview({
             occasionTheme={occasionTheme}
             theme={theme}
             pageType={currentPage.type}
+            background={currentPage.background}
             isCompact={true}
           />
 
@@ -159,7 +180,9 @@ export default function GiftPreview({
               <RecipientMusicController
                 musicItem={sections.find((s) => s.section_type === 'music')?.is_visible === false ? null : musicItem}
                 theme={theme}
+                defaultVolume={defaultVolume}
                 isCompact={true}
+                onRegisterHandle={onRegisterMusicHandle}
               />
               <span
                 className="inline-flex items-center gap-1 text-[10px] font-medium tracking-wide px-2.5 py-0.5 rounded-full bg-white/80 backdrop-blur-sm shadow-xs border border-warm-200/60"
@@ -385,13 +408,20 @@ export default function GiftPreview({
                         {mediaItems.length} photos
                       </span>
                     </div>
-                    {mediaItems.length > 0 ? (
+                    {((currentPage.content.photos && currentPage.content.photos.length > 0) ? currentPage.content.photos : mediaItems).length > 0 ? (
                       <div className="grid grid-cols-2 gap-2">
-                        {mediaItems.slice(0, 4).map((item) => (
-                          <div key={item.id} className="aspect-square rounded-xl overflow-hidden bg-warm-100">
-                            <img src={item.signedUrl} alt={item.file_name} className="w-full h-full object-cover" />
-                          </div>
-                        ))}
+                        {((currentPage.content.photos && currentPage.content.photos.length > 0) ? currentPage.content.photos : mediaItems)
+                          .slice(0, 4)
+                          .map((item) => (
+                            <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-warm-100 group">
+                              <img src={item.signedUrl} alt={item.caption || item.file_name} className="w-full h-full object-cover" />
+                              {item.caption && (
+                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent p-1 px-1.5">
+                                  <p className="text-[10px] text-white italic truncate">&ldquo;{item.caption}&rdquo;</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
                       </div>
                     ) : (
                       <div className="py-6 text-center text-xs text-neutral-400">
@@ -403,32 +433,13 @@ export default function GiftPreview({
 
                 {/* 5. Video / Voice Page */}
                 {(currentPage.type === 'video' || currentPage.type === 'voice') && (
-                  <div className="p-4 rounded-3xl bg-white/95 shadow-xs border border-warm-200/80 space-y-3">
-                    <div className="flex items-center gap-2 border-b border-warm-100 pb-2">
-                      <div
-                        className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
-                        style={{ backgroundColor: primaryColor }}
-                      >
-                        {currentPage.type === 'voice' ? <Mic className="w-3.5 h-3.5" /> : <VideoIcon className="w-3.5 h-3.5" />}
-                      </div>
-                      <h3 className="font-serif text-sm font-semibold text-neutral-800">
-                        {currentPage.type === 'voice' ? 'Voice Note' : 'Video Message'}
-                      </h3>
-                    </div>
-                    {videoItems.length > 0 ? (
-                      <div className="aspect-video rounded-xl overflow-hidden bg-neutral-950">
-                        <video src={videoItems[0].signedUrl} controls className="w-full h-full object-contain" />
-                      </div>
-                    ) : voiceItem && voiceItem.signedUrl ? (
-                      <div className="p-3 bg-warm-50 rounded-xl">
-                        <audio src={voiceItem.signedUrl} controls className="w-full" />
-                      </div>
-                    ) : (
-                      <div className="py-6 text-center text-xs text-neutral-400">
-                        Media added in editor appears here
-                      </div>
-                    )}
-                  </div>
+                  <VideoMoment
+                    page={currentPage}
+                    theme={theme}
+                    onMediaPlay={handleMediaPlay}
+                    onMediaPause={handleMediaPause}
+                    isCompact={true}
+                  />
                 )}
 
                 {/* 6. Closing Page */}

@@ -46,40 +46,50 @@ export default function PhotosMoment({
         </span>
       </div>
 
-      {/* Photo Grid */}
+      {/* Photo Grid (2 columns on mobile/tablet) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 max-h-[55vh] overflow-y-auto pr-1 scrollbar-thin">
-        {photos.map((item, index) => (
-          <div
-            key={item.id}
-            onClick={() => onSelectPhoto(index)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onSelectPhoto(index)
-              }
-            }}
-            tabIndex={0}
-            role="button"
-            aria-label={`View photo ${index + 1}: ${item.file_name}`}
-            className={`group relative rounded-2xl overflow-hidden shadow-xs cursor-pointer bg-warm-100 transition-all duration-300 hover:shadow-md hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none ${
-              photos.length % 2 !== 0 && index === 0
-                ? 'sm:col-span-2 aspect-[16/10]'
-                : 'aspect-square'
-            }`}
-          >
-            <img
-              src={item.signedUrl}
-              alt={item.file_name}
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-neutral-900/0 group-hover:bg-neutral-900/25 transition-colors flex items-end p-3">
-              <span className="opacity-0 group-hover:opacity-100 text-white text-[11px] font-medium bg-neutral-900/70 backdrop-blur-sm px-2.5 py-1 rounded-full transition-opacity shadow-xs">
-                🔍 Tap to enlarge
-              </span>
+        {photos.map((item, index) => {
+          const isSpan = photos.length % 2 !== 0 && index === 0
+
+          return (
+            <div
+              key={item.id}
+              onClick={() => onSelectPhoto(index)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelectPhoto(index)
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={`View photo ${index + 1}: ${item.caption || item.file_name}`}
+              className={`group relative rounded-2xl overflow-hidden shadow-xs cursor-pointer bg-warm-100 transition-all duration-300 hover:shadow-md hover:scale-[1.01] focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none min-h-[140px] ${
+                isSpan ? 'sm:col-span-2 aspect-[16/10]' : 'aspect-square'
+              }`}
+            >
+              <img
+                src={item.signedUrl}
+                alt={item.caption || item.file_name}
+                loading="lazy"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+
+              {/* Caption or Tap Hint Overlay */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 pt-6 flex flex-col justify-end transition-opacity">
+                {item.caption ? (
+                  <p className="text-white text-xs font-serif italic truncate drop-shadow-xs">
+                    &ldquo;{item.caption}&rdquo;
+                  </p>
+                ) : (
+                  <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-medium bg-neutral-900/60 backdrop-blur-sm self-start px-2 py-0.5 rounded-full transition-opacity shadow-xs">
+                    🔍 Tap to view
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </article>
   )
