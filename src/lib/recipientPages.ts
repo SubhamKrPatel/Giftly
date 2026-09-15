@@ -75,6 +75,8 @@ export interface ResolveRecipientPagesOptions {
  * - Opening, Message, and Final Wish (Closing) are required and always included.
  * - Optional pages (Story, Photos, Video, Voice) are only included if the section
  *   is marked visible AND has actual content (photos > 0, videos > 0, etc.).
+ * - Background Music is a global ambient soundtrack, NOT a recipient page moment,
+ *   and is NEVER included in the resolved recipient pages array.
  * - Empty states are automatically skipped so recipients never see a blank moment.
  */
 export function resolveRecipientPages({

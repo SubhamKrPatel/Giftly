@@ -493,7 +493,14 @@ export default function GiftPreview({
 
               <button
                 type="button"
-                onClick={() => setCurrentPageIndex((p) => (isLastPage ? 0 : Math.min(pages.length - 1, p + 1)))}
+                onClick={() => {
+                  if (isLastPage) {
+                    musicHandleRef.current?.handleReplayReset()
+                    setCurrentPageIndex(0)
+                  } else {
+                    setCurrentPageIndex((p) => Math.min(pages.length - 1, p + 1))
+                  }
+                }}
                 className="p-1.5 rounded-full text-neutral-600 hover:text-neutral-900 hover:bg-warm-100 transition-colors cursor-pointer"
                 title={isLastPage ? 'Replay' : 'Next Moment'}
               >

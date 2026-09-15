@@ -17,6 +17,7 @@ import { useGiftEditor } from '@/lib/hooks/useGiftEditor'
 import { useGiftMedia } from '@/lib/hooks/useGiftMedia'
 import { useGiftVideos } from '@/lib/hooks/useGiftVideos'
 import { useGiftAudio } from '@/lib/hooks/useGiftAudio'
+import { resolveRecipientPages } from '@/lib/recipientPages'
 import type {
   CoverSectionContent,
   MessageSectionContent,
@@ -236,6 +237,19 @@ export default function GiftEditorPage() {
     updateSectionContent('message', content.message)
     updateSectionContent('final_message', content.final_message)
   }
+
+  // Compute real recipient moments count (excluding music, which is an ambient soundtrack)
+  const allMediaForResolver = useMemo(() => {
+    const list = [...mediaItems, ...videoItems]
+    if (voiceItem) list.push(voiceItem)
+    if (musicItem) list.push(musicItem)
+    return list
+  }, [mediaItems, videoItems, voiceItem, musicItem])
+
+  const recipientMomentsCount = useMemo(() => {
+    if (!gift) return 0
+    return resolveRecipientPages({ gift, sections, mediaItems: allMediaForResolver }).length
+  }, [gift, sections, allMediaForResolver])
 
   // Ordered navigation list for pagination & mobile nav
   const orderedNavIds = useMemo(() => {
@@ -614,6 +628,7 @@ export default function GiftEditorPage() {
           mediaItems={mediaItems}
           videoItems={videoItems}
           voiceItem={voiceItem}
+          musicItem={musicItem}
         />
 
         {/* Live Device Preview Canvas */}
@@ -724,7 +739,8 @@ export default function GiftEditorPage() {
         templateName={gift.template?.name}
         giftTitle={gift.title || undefined}
         giftId={gift.id}
-        momentsCount={sections.filter((s) => s.is_visible !== false).length}
+        momentsCount={recipientMomentsCount}
+        hasMusic={Boolean(musicSection?.is_visible !== false && musicItem?.signedUrl)}
         onPublish={publish}
       />
 

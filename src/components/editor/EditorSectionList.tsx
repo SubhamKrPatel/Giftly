@@ -93,6 +93,10 @@ export default function EditorSectionList({
   // Sort sections by position
   const sortedSections = [...sections].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
 
+  // Separate numbered recipient pages from global ambient music
+  const pageSections = sortedSections.filter((s) => s.section_type !== 'music')
+  const musicSection = sortedSections.find((s) => s.section_type === 'music')
+
   // Calculate real content summary for each section
   const getContentSummary = (section: GiftSection): { label: string; hasContent: boolean } => {
     switch (section.section_type) {
@@ -241,7 +245,7 @@ export default function EditorSectionList({
 
       <div className="h-px bg-warm-200" />
 
-      {/* ── 2. Dedicated Pages Panel ── */}
+      {/* ── 2. Dedicated Pages Panel (Numbered Recipient Moments Only) ── */}
       <div>
         <div className="px-3 py-1 mb-2 flex items-center justify-between">
           <div>
@@ -256,7 +260,7 @@ export default function EditorSectionList({
         </div>
 
         <nav className="space-y-1.5" aria-label="Gift Pages">
-          {sortedSections.map((section, index) => {
+          {pageSections.map((section, index) => {
             const meta = SECTION_METADATA[section.section_type] || {
               title: section.section_type,
               icon: Sparkles,
@@ -265,7 +269,7 @@ export default function EditorSectionList({
             const Icon = meta.icon
             const isActive = activeSection === section.section_type
             const isFirst = index === 0
-            const isLast = index === sortedSections.length - 1
+            const isLast = index === pageSections.length - 1
             const isRequired = meta.required
             const isVisible = section.is_visible !== false
 
@@ -424,6 +428,97 @@ export default function EditorSectionList({
           })}
         </nav>
       </div>
+
+      {/* ── 3. Global Ambient Soundtrack (Separate from numbered pages) ── */}
+      {musicSection && (
+        <>
+          <div className="h-px bg-warm-200" />
+          <div>
+            <div className="px-3 py-1 mb-2">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                Ambient Soundtrack
+              </h2>
+              <p className="text-[10px] text-neutral-400">Global background soundtrack</p>
+            </div>
+
+            <div
+              className={cn(
+                'group flex items-center justify-between gap-1 p-2 rounded-2xl transition-all duration-200',
+                activeSection === 'music'
+                  ? 'bg-rose-50 border border-rose-200 text-neutral-900 shadow-sm ring-1 ring-rose-200'
+                  : 'hover:bg-warm-100 text-neutral-700',
+                musicSection.is_visible === false && activeSection !== 'music' && 'opacity-70 bg-warm-50/50'
+              )}
+            >
+              {/* Select Music Setting */}
+              <button
+                type="button"
+                onClick={() => onSectionSelect('music')}
+                className="flex items-center gap-2.5 flex-1 min-w-0 text-left cursor-pointer"
+                aria-label={`Edit Background Music (${musicSection.is_visible !== false ? 'Enabled' : 'Disabled'})`}
+              >
+                <div
+                  className={cn(
+                    'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors',
+                    activeSection === 'music'
+                      ? 'bg-rose-500 text-white shadow-sm'
+                      : 'bg-warm-200 text-neutral-600'
+                  )}
+                >
+                  <Music className="w-4 h-4" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <span
+                    className={cn(
+                      'text-xs sm:text-sm font-semibold truncate block',
+                      activeSection === 'music' ? 'text-rose-700' : 'text-neutral-800'
+                    )}
+                  >
+                    Background Music
+                  </span>
+                  <p className="text-[11px] text-neutral-400 truncate">
+                    {musicItem && musicItem.signedUrl ? '1 track attached' : 'No track uploaded'}
+                  </p>
+                </div>
+              </button>
+
+              {/* Show/Hide Switch */}
+              {onToggleVisibility && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={musicSection.is_visible !== false}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onToggleVisibility(musicSection.id)
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer min-h-[44px] min-w-[76px] justify-center focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none select-none',
+                    musicSection.is_visible !== false
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 active:scale-95'
+                      : 'bg-warm-100 text-neutral-500 border border-warm-200 hover:bg-warm-200 hover:text-neutral-700 active:scale-95'
+                  )}
+                  title={musicSection.is_visible !== false ? 'Click to disable soundtrack' : 'Click to enable soundtrack'}
+                  aria-label={`Toggle soundtrack (currently ${musicSection.is_visible !== false ? 'Enabled' : 'Disabled'})`}
+                >
+                  {musicSection.is_visible !== false ? (
+                    <>
+                      <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Enabled</span>
+                    </>
+                  ) : (
+                    <>
+                      <Circle className="w-3.5 h-3.5 text-neutral-400" />
+                      <span>Muted</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

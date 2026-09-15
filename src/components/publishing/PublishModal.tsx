@@ -13,6 +13,7 @@ import {
   Send,
   Eye,
   CheckCircle2,
+  Music,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import QRCodeCard from './QRCodeCard'
@@ -27,6 +28,7 @@ interface PublishModalProps {
   giftTitle?: string
   giftId?: string
   momentsCount?: number
+  hasMusic?: boolean
   onPublish: () => Promise<{ success: boolean; public_slug?: string; error?: string }>
 }
 
@@ -39,6 +41,7 @@ export default function PublishModal({
   giftTitle,
   giftId,
   momentsCount = 5,
+  hasMusic = false,
   onPublish,
 }: PublishModalProps) {
   const [publishing, setPublishing] = useState(false)
@@ -206,12 +209,21 @@ export default function PublishModal({
                   </div>
                 )}
                 <div>
-                  <span className="text-[11px] text-neutral-400 block">Content</span>
+                  <span className="text-[11px] text-neutral-400 block">Recipient Moments</span>
                   <span className="font-semibold text-neutral-800 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                    <span>{momentsCount} moments</span>
+                    <span>{momentsCount} {momentsCount === 1 ? 'moment' : 'moments'}</span>
                   </span>
                 </div>
+                {hasMusic && (
+                  <div>
+                    <span className="text-[11px] text-neutral-400 block">Soundtrack</span>
+                    <span className="font-semibold text-emerald-700 flex items-center gap-1">
+                      <Music className="w-3 h-3 text-rose-500" />
+                      <span>Background Music: Added</span>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

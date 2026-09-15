@@ -196,6 +196,7 @@ export default function RecipientGiftExperience({
   }, [currentPageIndex, goToPage])
 
   const handleReplay = useCallback(() => {
+    musicHandleRef.current?.handleReplayReset()
     goToPage(0)
   }, [goToPage])
 

@@ -5,6 +5,7 @@ import {
   Image as ImageIcon,
   Video,
   Mic,
+  Music,
   Gift,
   BookOpen,
   FileText,
@@ -21,6 +22,7 @@ interface MobilePageNavProps {
   mediaItems?: GiftMediaItem[]
   videoItems?: GiftMediaItem[]
   voiceItem?: GiftMediaItem | null
+  musicItem?: GiftMediaItem | null
 }
 
 interface NavItem {
@@ -40,6 +42,7 @@ export default function MobilePageNav({
   mediaItems = [],
   videoItems = [],
   voiceItem = null,
+  musicItem = null,
 }: MobilePageNavProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -63,6 +66,19 @@ export default function MobilePageNav({
         isSetting: true,
       },
     ]
+
+    const musicSection = sections.find((s) => s.section_type === 'music')
+    if (musicSection) {
+      items.push({
+        id: 'music',
+        title: 'Music',
+        icon: Music,
+        badge: musicItem?.signedUrl ? '1 track' : undefined,
+        isRequired: false,
+        isVisible: musicSection.is_visible !== false,
+        isSetting: true,
+      })
+    }
 
     const sortedSections = [...sections].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
 
@@ -147,7 +163,7 @@ export default function MobilePageNav({
     })
 
     return items
-  }, [sections, mediaItems.length, videoItems.length, voiceItem])
+  }, [sections, mediaItems.length, videoItems.length, voiceItem, musicItem])
 
   // Auto-scroll active item into view when activeSection changes
   useEffect(() => {

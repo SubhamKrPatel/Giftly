@@ -5,6 +5,7 @@ import type { GiftMediaItem, GiftThemeConfig } from '@/lib/database.types'
 export interface RecipientMusicControllerHandle {
   handleVideoPlay: () => void
   handleVideoPause: () => void
+  handleReplayReset: () => void
 }
 
 interface RecipientMusicControllerProps {
@@ -119,15 +120,31 @@ export default function RecipientMusicController({
     }
   }, [safePlay])
 
-  // Register external handles for VideoMoment coordination
+  // Replay coordination (user restarts gift from beginning -> background music pauses and state resets)
+  const handleReplayReset = useCallback(() => {
+    setUserWantsMusic(false)
+    setIsPlaying(false)
+    setIsPausedByVideo(false)
+    userWantsMusicRef.current = false
+    isPlayingRef.current = false
+    isPausedByVideoRef.current = false
+
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+    }
+  }, [])
+
+  // Register external handles for VideoMoment and Replay coordination
   useEffect(() => {
     if (onRegisterHandle) {
       onRegisterHandle({
         handleVideoPlay,
         handleVideoPause,
+        handleReplayReset,
       })
     }
-  }, [onRegisterHandle, handleVideoPlay, handleVideoPause])
+  }, [onRegisterHandle, handleVideoPlay, handleVideoPause, handleReplayReset])
 
   // Close volume popover when clicking outside
   useEffect(() => {
